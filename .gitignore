@@ -1,0 +1,40 @@
+# C extensions
+*.so
+
+# Packages
+*.egg
+*.egg-info
+dist
+build
+eggs
+parts
+bin
+include
+var
+sdist
+develop-eggs
+.installed.cfg
+pyvenv.cfg
+lib
+share/
+lib64
+__pycache__
+venv*/
+.venv*/
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+coverage.xml
+.coverage
+.nox
+.tox
+.cache
+htmlcov
+
+# Mac
+.DS_Store
+
+# VSCode
+.vscode
