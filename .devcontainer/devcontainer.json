@@ -43,6 +43,7 @@
 				"KevinRose.vsc-python-indent",
 				"ms-python.black-formatter",
 				"ms-python.isort",
+				"ms-python.pylint",
 				"ms-python.python",
 				"ms-python.vscode-pylance",
 				"streetsidesoftware.code-spell-checker"
