@@ -11,6 +11,7 @@
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
+			// Set *default* container specific settings.json values on container create.
 			"settings": {
 				"cSpell.language": "en,en-GB,en-US,lorem",
 				"cSpell.ignorePaths": [
@@ -19,23 +20,29 @@
 					".git/objects",
 					".vscode",
 					".vscode-insiders"
+				],
+				"python.globalModuleInstallation": true,
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": true,
+				"python.pythonPath": "/usr/local/bin/python",
+				"[python]": {
+					"editor.defaultFormatter": "ms-python.black-formatter",
+					"editor.formatOnSave": true,
+					"editor.codeActionsOnSave": {
+						"source.organizeImports": true
+					}
+				},
+				"isort.args": [
+					"--profile",
+					"black"
 				]
-			},
-			"editor.formatOnSave": true,
-			"python.formatting.provider": "black",
-			"python.globalModuleInstallation": true,
-			"python.linting.enabled": true,
-			"python.linting.pylintEnabled": true,
-			"python.pythonPath": "/usr/local/bin/python",
-			"[python]": {
-				"editor.codeActionsOnSave": {
-					"source.organizeImports": true
-				}
 			},
 			"extensions": [
 				"GitHub.vscode-pull-request-github",
 				"github.vscode-github-actions",
 				"KevinRose.vsc-python-indent",
+				"ms-python.black-formatter",
+				"ms-python.isort",
 				"ms-python.python",
 				"ms-python.vscode-pylance",
 				"streetsidesoftware.code-spell-checker"
