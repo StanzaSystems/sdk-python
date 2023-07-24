@@ -14,7 +14,7 @@ TODO
 
 If not specified in the SDK initialization, the API Key, Service Name, Service Release, and Environment are read from the environment variables `STANZA_API_KEY`, `STANZA_SERVICE_NAME`, `STANZA_SERVICE_RELEASE`, and `STANZA_ENVIRONMENT`, respectively.
 
-For more information, see the [Initialize Stanza section of our Go SDK documentation](https://docs.dev.getstanza.dev/gettingstarted/serversdk/go#initialize-stanza).
+For more information, see the [Initialize Stanza section of our Python SDK documentation](https://docs.dev.getstanza.dev/gettingstarted/serversdk/python#initialize-stanza).
 
 ## Usage
 
