@@ -1,4 +1,4 @@
-"""Example of adding Stanza fault tolerance decorators to a FastAPI application."""
+"""Example of adding Stanza fault tolerance guards to a FastAPI application."""
 
 import logging
 
