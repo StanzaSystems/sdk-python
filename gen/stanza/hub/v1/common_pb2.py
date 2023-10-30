@@ -15,53 +15,62 @@ from google.api import field_behavior_pb2 as google_dot_api_dot_field__behavior_
 from protoc_gen_openapiv2.options import annotations_pb2 as protoc__gen__openapiv2_dot_options_dot_annotations__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1astanza/hub/v1/common.proto\x12\rstanza.hub.v1\x1a\x1fgoogle/api/field_behavior.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\"}\n\x11\x44\x65\x63oratorSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12\x18\n\x04name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\x04name\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tags\"w\n\x0f\x46\x65\x61tureSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12\x14\n\x05names\x18\x02 \x03(\tR\x05names\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tags\"\xd0\x01\n\x18\x44\x65\x63oratorFeatureSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12+\n\x0e\x64\x65\x63orator_name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\rdecoratorName\x12&\n\x0c\x66\x65\x61ture_name\x18\x03 \x01(\tH\x00R\x0b\x66\x65\x61tureName\x88\x01\x01\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tagsB\x0f\n\r_feature_name\"\xef\x01\n\x18\x44\x65\x63oratorServiceSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12+\n\x0e\x64\x65\x63orator_name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\rdecoratorName\x12\'\n\x0cservice_name\x18\x03 \x01(\tB\x04\xe2\x41\x01\x02R\x0bserviceName\x12-\n\x0fservice_release\x18\x04 \x01(\tB\x04\xe2\x41\x01\x02R\x0eserviceRelease\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tags\"\xa6\x01\n\x0fServiceSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12\x18\n\x04name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\x04name\x12\x1d\n\x07release\x18\x03 \x01(\tH\x00R\x07release\x88\x01\x01\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tagsB\n\n\x08_release\"]\n\x10HealthByPriority\x12\x1a\n\x08priority\x18\x01 \x01(\rR\x08priority\x12-\n\x06health\x18\x02 \x01(\x0e\x32\x15.stanza.hub.v1.HealthR\x06health\"-\n\x03Tag\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value*U\n\x06Health\x12\x16\n\x12HEALTH_UNSPECIFIED\x10\x00\x12\r\n\tHEALTH_OK\x10\x01\x12\x13\n\x0fHEALTH_OVERLOAD\x10\x02\x12\x0f\n\x0bHEALTH_DOWN\x10\x03*E\n\x05State\x12\x15\n\x11STATE_UNSPECIFIED\x10\x00\x12\x11\n\rSTATE_ENABLED\x10\x01\x12\x12\n\x0eSTATE_DISABLED\x10\x02\x42\x80\x05\n\x11\x63om.stanza.hub.v1B\x0b\x43ommonProtoP\x01Z\x13stanza/hub/v1;hubpb\xa2\x02\x03SHX\xaa\x02\rStanza.Hub.V1\xca\x02\rStanza\\Hub\\V1\xe2\x02\x19Stanza\\Hub\\V1\\GPBMetadata\xea\x02\x0fStanza::Hub::V1\x92\x41\xf1\x03\x12O\n\x0eStanza Hub API\"8\n\x06Stanza\x12\x16https://stanza.systems\x1a\x16support@stanza.systems2\x03\x31.0*\x01\x02\x32\x10\x61pplication/json:\x10\x61pplication/jsonRU\n\x03\x34\x32\x39\x12N\n/Too Many Requests, try again after Retry-After.\x12\x1b\n\x19\x1a\x17#/definitions/rpcStatusR;\n\x03\x35\x30\x30\x12\x34\n\x15Internal Server Error\x12\x1b\n\x19\x1a\x17#/definitions/rpcStatusRW\n\x03\x35\x30\x33\x12P\n1Service Unavailable, try again after Retry-After.\x12\x1b\n\x19\x1a\x17#/definitions/rpcStatusZ\"\n \n\nApiKeyAuth\x12\x12\x08\x02\x1a\x0cX-Stanza-Key \x02\x62\x10\n\x0e\n\nApiKeyAuth\x12\x00rT\n\x0eStanza Hub API\x12\x42https://stanza.stoplight.io/docs/apis/291a2cff9d156-stanza-hub-apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1astanza/hub/v1/common.proto\x12\rstanza.hub.v1\x1a\x1fgoogle/api/field_behavior.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\"y\n\rGuardSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12\x18\n\x04name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\x04name\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tags\"w\n\x0f\x46\x65\x61tureSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12\x14\n\x05names\x18\x02 \x03(\tR\x05names\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tags\"\xc4\x01\n\x14GuardFeatureSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12#\n\nguard_name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\tguardName\x12&\n\x0c\x66\x65\x61ture_name\x18\x03 \x01(\tH\x00R\x0b\x66\x65\x61tureName\x88\x01\x01\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tagsB\x0f\n\r_feature_name\"\xe3\x01\n\x14GuardServiceSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12#\n\nguard_name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\tguardName\x12\'\n\x0cservice_name\x18\x03 \x01(\tB\x04\xe2\x41\x01\x02R\x0bserviceName\x12-\n\x0fservice_release\x18\x04 \x01(\tB\x04\xe2\x41\x01\x02R\x0eserviceRelease\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tags\"\xa6\x01\n\x0fServiceSelector\x12&\n\x0b\x65nvironment\x18\x01 \x01(\tB\x04\xe2\x41\x01\x02R\x0b\x65nvironment\x12\x18\n\x04name\x18\x02 \x01(\tB\x04\xe2\x41\x01\x02R\x04name\x12\x1d\n\x07release\x18\x03 \x01(\tH\x00R\x07release\x88\x01\x01\x12&\n\x04tags\x18\x06 \x03(\x0b\x32\x12.stanza.hub.v1.TagR\x04tagsB\n\n\x08_release\"]\n\x10HealthByPriority\x12\x1a\n\x08priority\x18\x01 \x01(\rR\x08priority\x12-\n\x06health\x18\x02 \x01(\x0e\x32\x15.stanza.hub.v1.HealthR\x06health\"-\n\x03Tag\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value*U\n\x06Health\x12\x16\n\x12HEALTH_UNSPECIFIED\x10\x00\x12\r\n\tHEALTH_OK\x10\x01\x12\x13\n\x0fHEALTH_OVERLOAD\x10\x02\x12\x0f\n\x0bHEALTH_DOWN\x10\x03*E\n\x05State\x12\x15\n\x11STATE_UNSPECIFIED\x10\x00\x12\x11\n\rSTATE_ENABLED\x10\x01\x12\x12\n\x0eSTATE_DISABLED\x10\x02*\x95\x01\n\x06\x43onfig\x12\x16\n\x12\x43ONFIG_UNSPECIFIED\x10\x00\x12\x14\n\x10\x43ONFIG_CACHED_OK\x10\x01\x12\x15\n\x11\x43ONFIG_FETCHED_OK\x10\x02\x12\x14\n\x10\x43ONFIG_NOT_FOUND\x10\x03\x12\x16\n\x12\x43ONFIG_FETCH_ERROR\x10\x04\x12\x18\n\x14\x43ONFIG_FETCH_TIMEOUT\x10\x05*\x9b\x01\n\x05Local\x12\x15\n\x11LOCAL_UNSPECIFIED\x10\x00\x12\x17\n\x13LOCAL_NOT_SUPPORTED\x10\x01\x12\x12\n\x0eLOCAL_NOT_EVAL\x10\x02\x12\x17\n\x13LOCAL_EVAL_DISABLED\x10\x03\x12\x11\n\rLOCAL_ALLOWED\x10\x04\x12\x11\n\rLOCAL_BLOCKED\x10\x05\x12\x0f\n\x0bLOCAL_ERROR\x10\x06*\xab\x01\n\x05Token\x12\x15\n\x11TOKEN_UNSPECIFIED\x10\x00\x12\x12\n\x0eTOKEN_NOT_EVAL\x10\x01\x12\x17\n\x13TOKEN_EVAL_DISABLED\x10\x02\x12\x13\n\x0fTOKEN_NOT_VALID\x10\x03\x12\x0f\n\x0bTOKEN_VALID\x10\x04\x12\x1a\n\x16TOKEN_VALIDATION_ERROR\x10\x05\x12\x1c\n\x18TOKEN_VALIDATION_TIMEOUT\x10\x06*\xac\x01\n\x05Quota\x12\x15\n\x11QUOTA_UNSPECIFIED\x10\x00\x12\x12\n\x0eQUOTA_NOT_EVAL\x10\x01\x12\x17\n\x13QUOTA_EVAL_DISABLED\x10\x02\x12\x15\n\x11QUOTA_LOCAL_ERROR\x10\x03\x12\x11\n\rQUOTA_BLOCKED\x10\x04\x12\x11\n\rQUOTA_GRANTED\x10\x05\x12\x0f\n\x0bQUOTA_ERROR\x10\x06\x12\x11\n\rQUOTA_TIMEOUT\x10\x07*C\n\x04Mode\x12\x14\n\x10MODE_UNSPECIFIED\x10\x00\x12\x0f\n\x0bMODE_NORMAL\x10\x01\x12\x14\n\x10MODE_REPORT_ONLY\x10\x02\x42\x80\x05\n\x11\x63om.stanza.hub.v1B\x0b\x43ommonProtoP\x01Z\x13stanza/hub/v1;hubpb\xa2\x02\x03SHX\xaa\x02\rStanza.Hub.V1\xca\x02\rStanza\\Hub\\V1\xe2\x02\x19Stanza\\Hub\\V1\\GPBMetadata\xea\x02\x0fStanza::Hub::V1\x92\x41\xf1\x03\x12O\n\x0eStanza Hub API\"8\n\x06Stanza\x12\x16https://stanza.systems\x1a\x16support@stanza.systems2\x03\x31.0*\x01\x02\x32\x10\x61pplication/json:\x10\x61pplication/jsonRU\n\x03\x34\x32\x39\x12N\n/Too Many Requests, try again after Retry-After.\x12\x1b\n\x19\x1a\x17#/definitions/rpcStatusR;\n\x03\x35\x30\x30\x12\x34\n\x15Internal Server Error\x12\x1b\n\x19\x1a\x17#/definitions/rpcStatusRW\n\x03\x35\x30\x33\x12P\n1Service Unavailable, try again after Retry-After.\x12\x1b\n\x19\x1a\x17#/definitions/rpcStatusZ\"\n \n\nApiKeyAuth\x12\x12\x08\x02\x1a\x0cX-Stanza-Key \x02\x62\x10\n\x0e\n\nApiKeyAuth\x12\x00rT\n\x0eStanza Hub API\x12\x42https://stanza.stoplight.io/docs/apis/291a2cff9d156-stanza-hub-apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'stanza.hub.v1.common_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
-
-  DESCRIPTOR._options = None
-  DESCRIPTOR._serialized_options = b'\n\021com.stanza.hub.v1B\013CommonProtoP\001Z\023stanza/hub/v1;hubpb\242\002\003SHX\252\002\rStanza.Hub.V1\312\002\rStanza\\Hub\\V1\342\002\031Stanza\\Hub\\V1\\GPBMetadata\352\002\017Stanza::Hub::V1\222A\361\003\022O\n\016Stanza Hub API\"8\n\006Stanza\022\026https://stanza.systems\032\026support@stanza.systems2\0031.0*\001\0022\020application/json:\020application/jsonRU\n\003429\022N\n/Too Many Requests, try again after Retry-After.\022\033\n\031\032\027#/definitions/rpcStatusR;\n\003500\0224\n\025Internal Server Error\022\033\n\031\032\027#/definitions/rpcStatusRW\n\003503\022P\n1Service Unavailable, try again after Retry-After.\022\033\n\031\032\027#/definitions/rpcStatusZ\"\n \n\nApiKeyAuth\022\022\010\002\032\014X-Stanza-Key \002b\020\n\016\n\nApiKeyAuth\022\000rT\n\016Stanza Hub API\022Bhttps://stanza.stoplight.io/docs/apis/291a2cff9d156-stanza-hub-api'
-  _DECORATORSELECTOR.fields_by_name['environment']._options = None
-  _DECORATORSELECTOR.fields_by_name['environment']._serialized_options = b'\342A\001\002'
-  _DECORATORSELECTOR.fields_by_name['name']._options = None
-  _DECORATORSELECTOR.fields_by_name['name']._serialized_options = b'\342A\001\002'
-  _FEATURESELECTOR.fields_by_name['environment']._options = None
-  _FEATURESELECTOR.fields_by_name['environment']._serialized_options = b'\342A\001\002'
-  _DECORATORFEATURESELECTOR.fields_by_name['environment']._options = None
-  _DECORATORFEATURESELECTOR.fields_by_name['environment']._serialized_options = b'\342A\001\002'
-  _DECORATORFEATURESELECTOR.fields_by_name['decorator_name']._options = None
-  _DECORATORFEATURESELECTOR.fields_by_name['decorator_name']._serialized_options = b'\342A\001\002'
-  _DECORATORSERVICESELECTOR.fields_by_name['environment']._options = None
-  _DECORATORSERVICESELECTOR.fields_by_name['environment']._serialized_options = b'\342A\001\002'
-  _DECORATORSERVICESELECTOR.fields_by_name['decorator_name']._options = None
-  _DECORATORSERVICESELECTOR.fields_by_name['decorator_name']._serialized_options = b'\342A\001\002'
-  _DECORATORSERVICESELECTOR.fields_by_name['service_name']._options = None
-  _DECORATORSERVICESELECTOR.fields_by_name['service_name']._serialized_options = b'\342A\001\002'
-  _DECORATORSERVICESELECTOR.fields_by_name['service_release']._options = None
-  _DECORATORSERVICESELECTOR.fields_by_name['service_release']._serialized_options = b'\342A\001\002'
-  _SERVICESELECTOR.fields_by_name['environment']._options = None
-  _SERVICESELECTOR.fields_by_name['environment']._serialized_options = b'\342A\001\002'
-  _SERVICESELECTOR.fields_by_name['name']._options = None
-  _SERVICESELECTOR.fields_by_name['name']._serialized_options = b'\342A\001\002'
-  _globals['_HEALTH']._serialized_start=1138
-  _globals['_HEALTH']._serialized_end=1223
-  _globals['_STATE']._serialized_start=1225
-  _globals['_STATE']._serialized_end=1294
-  _globals['_DECORATORSELECTOR']._serialized_start=126
-  _globals['_DECORATORSELECTOR']._serialized_end=251
-  _globals['_FEATURESELECTOR']._serialized_start=253
-  _globals['_FEATURESELECTOR']._serialized_end=372
-  _globals['_DECORATORFEATURESELECTOR']._serialized_start=375
-  _globals['_DECORATORFEATURESELECTOR']._serialized_end=583
-  _globals['_DECORATORSERVICESELECTOR']._serialized_start=586
-  _globals['_DECORATORSERVICESELECTOR']._serialized_end=825
-  _globals['_SERVICESELECTOR']._serialized_start=828
-  _globals['_SERVICESELECTOR']._serialized_end=994
-  _globals['_HEALTHBYPRIORITY']._serialized_start=996
-  _globals['_HEALTHBYPRIORITY']._serialized_end=1089
-  _globals['_TAG']._serialized_start=1091
-  _globals['_TAG']._serialized_end=1136
+  _globals['DESCRIPTOR']._options = None
+  _globals['DESCRIPTOR']._serialized_options = b'\n\021com.stanza.hub.v1B\013CommonProtoP\001Z\023stanza/hub/v1;hubpb\242\002\003SHX\252\002\rStanza.Hub.V1\312\002\rStanza\\Hub\\V1\342\002\031Stanza\\Hub\\V1\\GPBMetadata\352\002\017Stanza::Hub::V1\222A\361\003\022O\n\016Stanza Hub API\"8\n\006Stanza\022\026https://stanza.systems\032\026support@stanza.systems2\0031.0*\001\0022\020application/json:\020application/jsonRU\n\003429\022N\n/Too Many Requests, try again after Retry-After.\022\033\n\031\032\027#/definitions/rpcStatusR;\n\003500\0224\n\025Internal Server Error\022\033\n\031\032\027#/definitions/rpcStatusRW\n\003503\022P\n1Service Unavailable, try again after Retry-After.\022\033\n\031\032\027#/definitions/rpcStatusZ\"\n \n\nApiKeyAuth\022\022\010\002\032\014X-Stanza-Key \002b\020\n\016\n\nApiKeyAuth\022\000rT\n\016Stanza Hub API\022Bhttps://stanza.stoplight.io/docs/apis/291a2cff9d156-stanza-hub-api'
+  _globals['_GUARDSELECTOR'].fields_by_name['environment']._options = None
+  _globals['_GUARDSELECTOR'].fields_by_name['environment']._serialized_options = b'\342A\001\002'
+  _globals['_GUARDSELECTOR'].fields_by_name['name']._options = None
+  _globals['_GUARDSELECTOR'].fields_by_name['name']._serialized_options = b'\342A\001\002'
+  _globals['_FEATURESELECTOR'].fields_by_name['environment']._options = None
+  _globals['_FEATURESELECTOR'].fields_by_name['environment']._serialized_options = b'\342A\001\002'
+  _globals['_GUARDFEATURESELECTOR'].fields_by_name['environment']._options = None
+  _globals['_GUARDFEATURESELECTOR'].fields_by_name['environment']._serialized_options = b'\342A\001\002'
+  _globals['_GUARDFEATURESELECTOR'].fields_by_name['guard_name']._options = None
+  _globals['_GUARDFEATURESELECTOR'].fields_by_name['guard_name']._serialized_options = b'\342A\001\002'
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['environment']._options = None
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['environment']._serialized_options = b'\342A\001\002'
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['guard_name']._options = None
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['guard_name']._serialized_options = b'\342A\001\002'
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['service_name']._options = None
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['service_name']._serialized_options = b'\342A\001\002'
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['service_release']._options = None
+  _globals['_GUARDSERVICESELECTOR'].fields_by_name['service_release']._serialized_options = b'\342A\001\002'
+  _globals['_SERVICESELECTOR'].fields_by_name['environment']._options = None
+  _globals['_SERVICESELECTOR'].fields_by_name['environment']._serialized_options = b'\342A\001\002'
+  _globals['_SERVICESELECTOR'].fields_by_name['name']._options = None
+  _globals['_SERVICESELECTOR'].fields_by_name['name']._serialized_options = b'\342A\001\002'
+  _globals['_HEALTH']._serialized_start=1110
+  _globals['_HEALTH']._serialized_end=1195
+  _globals['_STATE']._serialized_start=1197
+  _globals['_STATE']._serialized_end=1266
+  _globals['_CONFIG']._serialized_start=1269
+  _globals['_CONFIG']._serialized_end=1418
+  _globals['_LOCAL']._serialized_start=1421
+  _globals['_LOCAL']._serialized_end=1576
+  _globals['_TOKEN']._serialized_start=1579
+  _globals['_TOKEN']._serialized_end=1750
+  _globals['_QUOTA']._serialized_start=1753
+  _globals['_QUOTA']._serialized_end=1925
+  _globals['_MODE']._serialized_start=1927
+  _globals['_MODE']._serialized_end=1994
+  _globals['_GUARDSELECTOR']._serialized_start=126
+  _globals['_GUARDSELECTOR']._serialized_end=247
+  _globals['_FEATURESELECTOR']._serialized_start=249
+  _globals['_FEATURESELECTOR']._serialized_end=368
+  _globals['_GUARDFEATURESELECTOR']._serialized_start=371
+  _globals['_GUARDFEATURESELECTOR']._serialized_end=567
+  _globals['_GUARDSERVICESELECTOR']._serialized_start=570
+  _globals['_GUARDSERVICESELECTOR']._serialized_end=797
+  _globals['_SERVICESELECTOR']._serialized_start=800
+  _globals['_SERVICESELECTOR']._serialized_end=966
+  _globals['_HEALTHBYPRIORITY']._serialized_start=968
+  _globals['_HEALTHBYPRIORITY']._serialized_end=1061
+  _globals['_TAG']._serialized_start=1063
+  _globals['_TAG']._serialized_end=1108
 # @@protoc_insertion_point(module_scope)

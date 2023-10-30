@@ -16,21 +16,20 @@ from protoc_gen_openapiv2.options import annotations_pb2 as protoc__gen__openapi
 from stanza.hub.v1 import common_pb2 as stanza_dot_hub_dot_v1_dot_common__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1astanza/hub/v1/health.proto\x12\rstanza.hub.v1\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\x1astanza/hub/v1/common.proto\"\xa1\x01\n\x1bQueryDecoratorHealthRequest\x12\x43\n\x08selector\x18\x01 \x01(\x0b\x32\'.stanza.hub.v1.DecoratorFeatureSelectorR\x08selector\x12*\n\x0epriority_boost\x18\x04 \x01(\x05H\x00R\rpriorityBoost\x88\x01\x01\x42\x11\n\x0f_priority_boost\"M\n\x1cQueryDecoratorHealthResponse\x12-\n\x06health\x18\x01 \x01(\x0e\x32\x15.stanza.hub.v1.HealthR\x06health2\xde\x02\n\rHealthService\x12\xcc\x02\n\x14QueryDecoratorHealth\x12*.stanza.hub.v1.QueryDecoratorHealthRequest\x1a+.stanza.hub.v1.QueryDecoratorHealthResponse\"\xda\x01\x92\x41\xb7\x01\x12\x14Get Decorator Health\x1a\x61Used by SDK to allow developers to make decisions about graceful degradation of backend services.J<\n\x03\x32\x30\x30\x12\x35\n\x02OK\x12/\n-\x1a+.stanza.hub.v1.QueryDecoratorHealthResponse\x82\xd3\xe4\x93\x02\x19\"\x14/v1/health/decorator:\x01*B\x8b\x01\n\x11\x63om.stanza.hub.v1B\x0bHealthProtoP\x01Z\x13stanza/hub/v1;hubpb\xa2\x02\x03SHX\xaa\x02\rStanza.Hub.V1\xca\x02\rStanza\\Hub\\V1\xe2\x02\x19Stanza\\Hub\\V1\\GPBMetadata\xea\x02\x0fStanza::Hub::V1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1astanza/hub/v1/health.proto\x12\rstanza.hub.v1\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\x1astanza/hub/v1/common.proto\"\x99\x01\n\x17QueryGuardHealthRequest\x12?\n\x08selector\x18\x01 \x01(\x0b\x32#.stanza.hub.v1.GuardFeatureSelectorR\x08selector\x12*\n\x0epriority_boost\x18\x04 \x01(\x05H\x00R\rpriorityBoost\x88\x01\x01\x42\x11\n\x0f_priority_boost\"I\n\x18QueryGuardHealthResponse\x12-\n\x06health\x18\x01 \x01(\x0e\x32\x15.stanza.hub.v1.HealthR\x06health2\xc6\x02\n\rHealthService\x12\xb4\x02\n\x10QueryGuardHealth\x12&.stanza.hub.v1.QueryGuardHealthRequest\x1a\'.stanza.hub.v1.QueryGuardHealthResponse\"\xce\x01\x92\x41\xaf\x01\x12\x10Get Guard Health\x1a\x61Used by SDK to allow developers to make decisions about graceful degradation of backend services.J8\n\x03\x32\x30\x30\x12\x31\n\x02OK\x12+\n)\x1a\'.stanza.hub.v1.QueryGuardHealthResponse\x82\xd3\xe4\x93\x02\x15\"\x10/v1/health/guard:\x01*B\x8b\x01\n\x11\x63om.stanza.hub.v1B\x0bHealthProtoP\x01Z\x13stanza/hub/v1;hubpb\xa2\x02\x03SHX\xaa\x02\rStanza.Hub.V1\xca\x02\rStanza\\Hub\\V1\xe2\x02\x19Stanza\\Hub\\V1\\GPBMetadata\xea\x02\x0fStanza::Hub::V1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'stanza.hub.v1.health_pb2', _globals)
 if _descriptor._USE_C_DESCRIPTORS == False:
-
-  DESCRIPTOR._options = None
-  DESCRIPTOR._serialized_options = b'\n\021com.stanza.hub.v1B\013HealthProtoP\001Z\023stanza/hub/v1;hubpb\242\002\003SHX\252\002\rStanza.Hub.V1\312\002\rStanza\\Hub\\V1\342\002\031Stanza\\Hub\\V1\\GPBMetadata\352\002\017Stanza::Hub::V1'
-  _HEALTHSERVICE.methods_by_name['QueryDecoratorHealth']._options = None
-  _HEALTHSERVICE.methods_by_name['QueryDecoratorHealth']._serialized_options = b'\222A\267\001\022\024Get Decorator Health\032aUsed by SDK to allow developers to make decisions about graceful degradation of backend services.J<\n\003200\0225\n\002OK\022/\n-\032+.stanza.hub.v1.QueryDecoratorHealthResponse\202\323\344\223\002\031\"\024/v1/health/decorator:\001*'
-  _globals['_QUERYDECORATORHEALTHREQUEST']._serialized_start=152
-  _globals['_QUERYDECORATORHEALTHREQUEST']._serialized_end=313
-  _globals['_QUERYDECORATORHEALTHRESPONSE']._serialized_start=315
-  _globals['_QUERYDECORATORHEALTHRESPONSE']._serialized_end=392
-  _globals['_HEALTHSERVICE']._serialized_start=395
-  _globals['_HEALTHSERVICE']._serialized_end=745
+  _globals['DESCRIPTOR']._options = None
+  _globals['DESCRIPTOR']._serialized_options = b'\n\021com.stanza.hub.v1B\013HealthProtoP\001Z\023stanza/hub/v1;hubpb\242\002\003SHX\252\002\rStanza.Hub.V1\312\002\rStanza\\Hub\\V1\342\002\031Stanza\\Hub\\V1\\GPBMetadata\352\002\017Stanza::Hub::V1'
+  _globals['_HEALTHSERVICE'].methods_by_name['QueryGuardHealth']._options = None
+  _globals['_HEALTHSERVICE'].methods_by_name['QueryGuardHealth']._serialized_options = b'\222A\257\001\022\020Get Guard Health\032aUsed by SDK to allow developers to make decisions about graceful degradation of backend services.J8\n\003200\0221\n\002OK\022+\n)\032\'.stanza.hub.v1.QueryGuardHealthResponse\202\323\344\223\002\025\"\020/v1/health/guard:\001*'
+  _globals['_QUERYGUARDHEALTHREQUEST']._serialized_start=152
+  _globals['_QUERYGUARDHEALTHREQUEST']._serialized_end=305
+  _globals['_QUERYGUARDHEALTHRESPONSE']._serialized_start=307
+  _globals['_QUERYGUARDHEALTHRESPONSE']._serialized_end=380
+  _globals['_HEALTHSERVICE']._serialized_start=383
+  _globals['_HEALTHSERVICE']._serialized_end=709
 # @@protoc_insertion_point(module_scope)

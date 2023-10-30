@@ -23,10 +23,10 @@ class HealthServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.QueryDecoratorHealth = channel.unary_unary(
-                '/stanza.hub.v1.HealthService/QueryDecoratorHealth',
-                request_serializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryDecoratorHealthRequest.SerializeToString,
-                response_deserializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryDecoratorHealthResponse.FromString,
+        self.QueryGuardHealth = channel.unary_unary(
+                '/stanza.hub.v1.HealthService/QueryGuardHealth',
+                request_serializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryGuardHealthRequest.SerializeToString,
+                response_deserializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryGuardHealthResponse.FromString,
                 )
 
 
@@ -42,7 +42,7 @@ class HealthServiceServicer(object):
     Like quota service this should be accessed by SDK via HTTPS.
     """
 
-    def QueryDecoratorHealth(self, request, context):
+    def QueryGuardHealth(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -51,10 +51,10 @@ class HealthServiceServicer(object):
 
 def add_HealthServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'QueryDecoratorHealth': grpc.unary_unary_rpc_method_handler(
-                    servicer.QueryDecoratorHealth,
-                    request_deserializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryDecoratorHealthRequest.FromString,
-                    response_serializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryDecoratorHealthResponse.SerializeToString,
+            'QueryGuardHealth': grpc.unary_unary_rpc_method_handler(
+                    servicer.QueryGuardHealth,
+                    request_deserializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryGuardHealthRequest.FromString,
+                    response_serializer=stanza_dot_hub_dot_v1_dot_health__pb2.QueryGuardHealthResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -76,7 +76,7 @@ class HealthService(object):
     """
 
     @staticmethod
-    def QueryDecoratorHealth(request,
+    def QueryGuardHealth(request,
             target,
             options=(),
             channel_credentials=None,
@@ -86,8 +86,8 @@ class HealthService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/stanza.hub.v1.HealthService/QueryDecoratorHealth',
-            stanza_dot_hub_dot_v1_dot_health__pb2.QueryDecoratorHealthRequest.SerializeToString,
-            stanza_dot_hub_dot_v1_dot_health__pb2.QueryDecoratorHealthResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/stanza.hub.v1.HealthService/QueryGuardHealth',
+            stanza_dot_hub_dot_v1_dot_health__pb2.QueryGuardHealthRequest.SerializeToString,
+            stanza_dot_hub_dot_v1_dot_health__pb2.QueryGuardHealthResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

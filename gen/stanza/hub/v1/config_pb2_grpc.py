@@ -10,12 +10,12 @@ class ConfigServiceStub(object):
     There is also an OpenAPI spec, generated via https://github.com/grpc-ecosystem/grpc-gateway.
 
     Config is used by the language-specific Stanza SDKs and Browser SDK to fetch Service and Feature configurations.
-    DecoratorConfig: Decorator level configuration ()
+    GuardConfig: Guard level configuration ()
     BrowserContext: Whether Feature is enabled or disabled, has centralized ratelimiting, etc
     ServiceConfig: Service level configuration (OTEL defaults, Sentinel configs, etc)
 
     The Config service definition.
-    This service is used by the Stanza SDK to get Service and Decorator configs.
+    This service is used by the Stanza SDK to get Service and Guard configs.
     This service is used by the Browser SDK to get Browser Contexts.
     """
 
@@ -25,10 +25,10 @@ class ConfigServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.GetDecoratorConfig = channel.unary_unary(
-                '/stanza.hub.v1.ConfigService/GetDecoratorConfig',
-                request_serializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetDecoratorConfigRequest.SerializeToString,
-                response_deserializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetDecoratorConfigResponse.FromString,
+        self.GetGuardConfig = channel.unary_unary(
+                '/stanza.hub.v1.ConfigService/GetGuardConfig',
+                request_serializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetGuardConfigRequest.SerializeToString,
+                response_deserializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetGuardConfigResponse.FromString,
                 )
         self.GetBrowserContext = channel.unary_unary(
                 '/stanza.hub.v1.ConfigService/GetBrowserContext',
@@ -47,16 +47,16 @@ class ConfigServiceServicer(object):
     There is also an OpenAPI spec, generated via https://github.com/grpc-ecosystem/grpc-gateway.
 
     Config is used by the language-specific Stanza SDKs and Browser SDK to fetch Service and Feature configurations.
-    DecoratorConfig: Decorator level configuration ()
+    GuardConfig: Guard level configuration ()
     BrowserContext: Whether Feature is enabled or disabled, has centralized ratelimiting, etc
     ServiceConfig: Service level configuration (OTEL defaults, Sentinel configs, etc)
 
     The Config service definition.
-    This service is used by the Stanza SDK to get Service and Decorator configs.
+    This service is used by the Stanza SDK to get Service and Guard configs.
     This service is used by the Browser SDK to get Browser Contexts.
     """
 
-    def GetDecoratorConfig(self, request, context):
+    def GetGuardConfig(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -77,10 +77,10 @@ class ConfigServiceServicer(object):
 
 def add_ConfigServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'GetDecoratorConfig': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetDecoratorConfig,
-                    request_deserializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetDecoratorConfigRequest.FromString,
-                    response_serializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetDecoratorConfigResponse.SerializeToString,
+            'GetGuardConfig': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetGuardConfig,
+                    request_deserializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetGuardConfigRequest.FromString,
+                    response_serializer=stanza_dot_hub_dot_v1_dot_config__pb2.GetGuardConfigResponse.SerializeToString,
             ),
             'GetBrowserContext': grpc.unary_unary_rpc_method_handler(
                     servicer.GetBrowserContext,
@@ -104,17 +104,17 @@ class ConfigService(object):
     There is also an OpenAPI spec, generated via https://github.com/grpc-ecosystem/grpc-gateway.
 
     Config is used by the language-specific Stanza SDKs and Browser SDK to fetch Service and Feature configurations.
-    DecoratorConfig: Decorator level configuration ()
+    GuardConfig: Guard level configuration ()
     BrowserContext: Whether Feature is enabled or disabled, has centralized ratelimiting, etc
     ServiceConfig: Service level configuration (OTEL defaults, Sentinel configs, etc)
 
     The Config service definition.
-    This service is used by the Stanza SDK to get Service and Decorator configs.
+    This service is used by the Stanza SDK to get Service and Guard configs.
     This service is used by the Browser SDK to get Browser Contexts.
     """
 
     @staticmethod
-    def GetDecoratorConfig(request,
+    def GetGuardConfig(request,
             target,
             options=(),
             channel_credentials=None,
@@ -124,9 +124,9 @@ class ConfigService(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/stanza.hub.v1.ConfigService/GetDecoratorConfig',
-            stanza_dot_hub_dot_v1_dot_config__pb2.GetDecoratorConfigRequest.SerializeToString,
-            stanza_dot_hub_dot_v1_dot_config__pb2.GetDecoratorConfigResponse.FromString,
+        return grpc.experimental.unary_unary(request, target, '/stanza.hub.v1.ConfigService/GetGuardConfig',
+            stanza_dot_hub_dot_v1_dot_config__pb2.GetGuardConfigRequest.SerializeToString,
+            stanza_dot_hub_dot_v1_dot_config__pb2.GetGuardConfigResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

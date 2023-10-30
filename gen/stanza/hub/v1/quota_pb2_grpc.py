@@ -74,7 +74,7 @@ class QuotaServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ValidateToken(self, request, context):
-        """Used by ingress decorators to validate Hub-generated tokens.
+        """Used by ingress Guards to validate Hub-generated tokens.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
