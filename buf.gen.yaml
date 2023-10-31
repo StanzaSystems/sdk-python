@@ -6,4 +6,4 @@ managed:
   enabled: true
 plugins:
   - plugin: buf.build/protocolbuffers/python
-    out: getstanza/gen
+    out: packages/getstanza/proto

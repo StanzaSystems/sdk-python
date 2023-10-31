@@ -12,7 +12,6 @@ pylint-protobuf = "^0.21.0"
 googleapis-common-protos = "^1.61.0"
 protoc-gen-openapiv2 = "^0.0.1"
 
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
