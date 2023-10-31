@@ -2,6 +2,7 @@
 
 import logging
 
+import getstanza as stanza
 import requests
 from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
@@ -11,6 +12,17 @@ NAME = "fastapi-example"
 RELEASE = "0.0.1"
 ENV = "dev"
 DEBUG = True
+
+if DEBUG:
+    logging.basicConfig(format="%(levelname)s:    %(message)s", level=logging.DEBUG)
+
+# Init Stanza fault tolerance library
+stanza.init(
+    api_key="test",  # or via STANZA_API_KEY environment variable
+    service_name=NAME,  # or via STANZA_SERVICE_NAME environment variable
+    service_release=RELEASE,  # or via STANZA_SERVICE_RELEASE environment variable
+    service_environment=ENV,  # or via STANZA_ENVIRONMENT environment variable
+)
 
 # Alternate popular python HTTP frameworks:
 # - AIOHTTP
