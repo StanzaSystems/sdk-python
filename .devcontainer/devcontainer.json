@@ -22,8 +22,6 @@
 					".vscode-insiders"
 				],
 				"python.globalModuleInstallation": true,
-				"python.linting.enabled": true,
-				"python.linting.pylintEnabled": true,
 				"python.pythonPath": "/usr/local/bin/python",
 				"[python]": {
 					"editor.defaultFormatter": "ms-python.black-formatter",
@@ -53,8 +51,8 @@
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	"portsAttributes": {
-		"5000": {
-			"label": "Flask Example",
+		"8000": {
+			"label": "FastAPI Sample",
 			"onAutoForward": "notify"
 		}
 	},
