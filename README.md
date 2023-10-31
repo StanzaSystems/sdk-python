@@ -2,15 +2,19 @@
 
 Stanza is a developer-first tool for increasing reliability based on prioritized traffic management, quota allocation, and rate-limiting. On the back-end, it helps prevent downtime related to overload and excessive use of third-party APIs. On the front-end, it helps segment and weight your traffic, react automatically to overload or other conditions, and inspect the state of your critical user journeys.
 
-"Stanza Python SDK" provides higher-order functions (["decorators"](https://docs.dev.getstanza.dev/glossary#decorator)) for adding this fault tolerance to your Python 3 application.
+"Stanza Python SDK" provides higher-order functions (["guards"](https://docs.dev.getstanza.dev/glossary#guard)) for adding this fault tolerance to your python 3.8+ application.
 
 ## Installation
 
-TODO
+The SDK is available on the Python Package Index (PyPI). You can install them via pip with the following command:
+
+```shell
+pip install getstanza
+```
   
 ## Configuration
 
-TODO
+To use `sdk-python`, you'll need to import the `getstanza` package and initialize it with a [Stanza API Key](https://docs.dev.getstanza.dev/dashboard/administration/keys) and other options.
 
 If not specified in the SDK initialization, the API Key, Service Name, Service Release, and Environment are read from the environment variables `STANZA_API_KEY`, `STANZA_SERVICE_NAME`, `STANZA_SERVICE_RELEASE`, and `STANZA_ENVIRONMENT`, respectively.
 
