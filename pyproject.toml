@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "getstanza"
+version = "0.0.1-beta1"
+description = "Python SDK for adding Stanza Systems fault tolerance to your python 3 service."
+authors = ["Stanza Systems <hello@sre.is>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+protobuf = "^4.24.4"
+pylint-protobuf = "^0.21.0"
+googleapis-common-protos = "^1.61.0"
+protoc-gen-openapiv2 = "^0.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
