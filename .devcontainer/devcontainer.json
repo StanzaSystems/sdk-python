@@ -43,7 +43,8 @@
 				"ms-python.python",
 				"ms-python.vscode-pylance",
 				"streetsidesoftware.code-spell-checker",
-				"donjayamanne.python-environment-manager"
+				"donjayamanne.python-environment-manager",
+				"tamasfe.even-better-toml"
 			]
 		}
 	},
