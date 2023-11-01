@@ -5,7 +5,7 @@
 	"image": "mcr.microsoft.com/devcontainers/python:1-3.11",
 	// Features to add to the dev container. More info: https://containers.dev/features
 	"features": {
-		"ghcr.io/devcontainers/features/github-cli:1": {},
+		"ghcr.io/devcontainers/features/github-cli:1": {}
 	},
 	// Configure tool-specific properties.
 	"customizations": {
@@ -20,8 +20,8 @@
 					".vscode",
 					".vscode-insiders"
 				],
-				"python.globalModuleInstallation": true,
-				"python.pythonPath": "/usr/local/bin/python",
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"pylint.importStrategy": "fromEnvironment",
 				"[python]": {
 					"editor.defaultFormatter": "ms-python.black-formatter",
 					"editor.formatOnSave": true,
@@ -37,7 +37,6 @@
 			"extensions": [
 				"GitHub.vscode-pull-request-github",
 				"github.vscode-github-actions",
-				"KevinRose.vsc-python-indent",
 				"ms-python.black-formatter",
 				"ms-python.isort",
 				"ms-python.pylint",
