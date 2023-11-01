@@ -6,6 +6,8 @@ import logging
 import os
 from typing import Optional
 
+from getstanza import state
+
 
 def init(
     api_key: Optional[str] = None,
@@ -52,5 +54,10 @@ def init(
     # TODO: Initialize OTEL TextMapPropagator here
     # otel.InitTextMapPropagator(otel.StanzaHeaders{})
 
-    # TODO: Initialize new global stanza state here
-    # global.NewState()
+    state.New(
+        api_key=api_key,
+        service_name=service_name,
+        service_release=service_release,
+        environment=service_environment,
+        hub_address=hub_address,
+    )
