@@ -5616,13 +5616,16 @@ class RemoteCaller:
         url_prefix: str,
         auth: Optional[requests.auth.AuthBase] = None,
         session: Optional[requests.Session] = None,
+        headers: Optional[dict[str, str]] = None,
     ) -> None:
         self.url_prefix = url_prefix
         self.auth = auth
         self.session = session
+        self.headers = headers
 
         if not self.session:
             self.session = requests.Session()
+            self.session.headers = self.headers
             self.session.auth = self.auth
 
     def auth_service_get_bearer_token(
