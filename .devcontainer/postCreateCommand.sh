@@ -3,11 +3,7 @@
 sudo apt-get update
 DEBIAN_FRONTEND=noninteractive \
     sudo apt-get -y install --no-install-recommends \
-    apt-utils dialog dnsutils protobuf-compiler
-
-go install github.com/bufbuild/buf/cmd/buf@latest
-go install github.com/grpc-ecosystem/grpc-health-probe@latest
-go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
+    apt-utils dialog dnsutils
 
 # Because I'm tired of remembering to do this everytime I rebuild my devcontainer
 echo '-w "\\n"' > ~/.curlrc
