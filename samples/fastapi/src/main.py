@@ -1,6 +1,7 @@
 """Example of adding Stanza fault tolerance guards to a FastAPI application."""
 
 import logging
+import sys
 
 import getstanza as stanza
 import requests
@@ -14,15 +15,23 @@ ENV = "dev"
 DEBUG = True
 
 if DEBUG:
-    logging.basicConfig(format="%(levelname)s:    %(message)s", level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
+
+# Log basic service details at startup
+logging.info("service init, name:%s, release:%s, env:%s", NAME, RELEASE, ENV)
+
 
 # Init Stanza fault tolerance library
-stanza.init(
-    api_key="test",  # or via STANZA_API_KEY environment variable
-    service_name=NAME,  # or via STANZA_SERVICE_NAME environment variable
-    service_release=RELEASE,  # or via STANZA_SERVICE_RELEASE environment variable
-    service_environment=ENV,  # or via STANZA_ENVIRONMENT environment variable
-)
+try:
+    stanza.init(
+        # api_key="YOUR-API-KEY-HERE",  # or via STANZA_API_KEY environment variable
+        service_name=NAME,  # or via STANZA_SERVICE_NAME environment variable
+        service_release=RELEASE,  # or via STANZA_SERVICE_RELEASE environment variable
+        service_environment=ENV,  # or via STANZA_ENVIRONMENT environment variable
+    )
+except ValueError:
+    logging.exception("")
+    sys.exit(1)
 
 # Alternate popular python HTTP frameworks:
 # - AIOHTTP

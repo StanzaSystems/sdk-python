@@ -7,10 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
-protobuf = "^4.24.4"
-pylint-protobuf = "^0.21.0"
-googleapis-common-protos = "^1.61.0"
-protoc-gen-openapiv2 = "^0.0.1"
+opentelemetry-api = "^1.20.0"
+opentelemetry-sdk = "^1.20.0"
+requests = "^2.31.0"
 
 [build-system]
 requires = ["poetry-core"]
