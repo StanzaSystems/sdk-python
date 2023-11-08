@@ -30,9 +30,8 @@ class StanzaHubPoller:
         """Stop polling Hub for configuration changes."""
 
         if self.__polling_task:
-            if self.__polling_task.cancel():
-                self.__polling = False
-                self.__polling_task = None
+            self.__polling_task.cancel()
+            self.__polling = False
 
     async def __poll(self):
         """Polls for updated configuration information from Hub."""
@@ -41,27 +40,21 @@ class StanzaHubPoller:
         # compatible API client. Also handle guards at that.
         self.configuration_manager.fetch_service_config()
 
-    async def __poll_and_wait(self, _task: Optional[asyncio.Task[None]] = None):
-        """Poll Hub, schedule a delay using interval, then another poll."""
+    async def __poll_interval(self, _task: Optional[asyncio.Task[None]] = None):
+        """Poll Hub then schedule another poll in the future using interval."""
 
         try:
             if self.__polling:
                 await self.__poll()
         finally:
             if self.__polling:
-                self.__schedule_wait()
+                loop = asyncio.get_running_loop()
+                loop.call_later(self.interval.total_seconds(), self.__schedule_poll)
 
     def __schedule_poll(self, _task: Optional[asyncio.Task[None]] = None):
         loop = asyncio.get_running_loop()
-        self.__polling_task = loop.create_task(self.__poll_and_wait())
+        self.__polling_task = loop.create_task(self.__poll_interval())
         self.__polling_task.add_done_callback(self.__handle_hub_poll_result)
-
-    def __schedule_wait(self, _task: Optional[asyncio.Task[None]] = None):
-        loop = asyncio.get_running_loop()
-        self.__polling_task = loop.create_task(
-            asyncio.sleep(self.interval.total_seconds())
-        )
-        self.__polling_task.add_done_callback(self.__schedule_poll)
 
     def __handle_hub_poll_result(self, task: asyncio.Task):
         try:

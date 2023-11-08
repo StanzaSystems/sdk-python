@@ -26,7 +26,11 @@ class StanzaConfigurationManager:
         self.hub_address = hub_address
         self.client_id = str(uuid.uuid4())
 
-        # TODO: Re-create this caller whenever attributes it depends on change.
+        # TODO: There's a couple of things to note here.
+        #
+        # 1. Consider re-creating the API client whenever attributes it depends on change.
+        # 2. Configure a reasonable default timeout. This specific generated
+        # client is going to be replaced soon, so that's unhandled as of now.
         self.hub_conn = hub.RemoteCaller(
             url_prefix=hub_address, headers={"X-Stanza-Key": api_key}
         )

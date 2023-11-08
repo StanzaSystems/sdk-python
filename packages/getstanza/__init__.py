@@ -11,6 +11,8 @@ from typing import Optional
 from getstanza.configuration_manager import StanzaConfigurationManager
 from getstanza.hub_poller import StanzaHubPoller
 
+CONFIG_POLL_INTERVAL_SECS = 15
+
 
 def init(
     api_key: Optional[str] = None,
@@ -58,7 +60,8 @@ def init(
     # TODO: Initialize OTEL TextMapPropagator here
     # otel.InitTextMapPropagator(otel.StanzaHeaders{})
 
-    # TODO: Consider allowing this all to be setup on another thread?
+    # TODO: Consider allowing this all to be setup on another thread so this
+    # works well with synchronous frameworks like Flask?
 
     configuration_manager = StanzaConfigurationManager(
         api_key=api_key,
@@ -68,9 +71,8 @@ def init(
         hub_address=hub_address,
     )
 
-    # TODO: Before PR make sure to make it not stop looping on network failure.
     hub_poller = StanzaHubPoller(
         configuration_manager=configuration_manager,
-        interval=datetime.timedelta(seconds=3),  # 15
+        interval=datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS),
     )
     hub_poller.start()
