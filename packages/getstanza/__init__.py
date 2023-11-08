@@ -2,7 +2,6 @@
 Python SDK for adding Stanza Systems fault tolerance to your Python 3 service.
 """
 
-import asyncio
 import datetime
 import logging
 import os
