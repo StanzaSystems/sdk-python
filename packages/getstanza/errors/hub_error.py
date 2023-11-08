@@ -19,7 +19,10 @@ class HubError(Exception):
 def hub_error(error: requests.exceptions.HTTPError):
     """Construct a Hub error exception associated with the response code."""
 
-    response = json.loads(error.response.text)
+    try:
+        response = json.loads(error.response.text)
+    except json.JSONDecodeError as exc:
+        raise error from exc
 
     # TODO: Throw different errors based off of the code that we get?
     return HubError(response["code"], response["message"], response.get("details", {}))
