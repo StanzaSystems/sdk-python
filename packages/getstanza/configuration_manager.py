@@ -3,7 +3,9 @@ import logging
 import uuid
 from typing import MutableMapping, Optional
 
+import requests
 from getstanza import hub
+from getstanza.errors import hub_error
 
 
 class StanzaConfigurationManager:
@@ -33,32 +35,40 @@ class StanzaConfigurationManager:
         self.service_config: Optional[hub.V1ServiceConfig] = None
         self.service_config_version: Optional[str] = None
         self.guard_configs: MutableMapping[str, tuple[str, hub.V1GuardConfig]] = {}
-        self.token: Optional[str] = None
+        self.bearer_token: Optional[str] = None
 
         # TODO: Add refetch logic for this whenever 'exp' happens.
-        # self.fetch_otel_bearer_token()
+        self.fetch_otel_bearer_token()
 
     def fetch_otel_bearer_token(self):
         """Fetch a new bearer token for use with the OTel collector."""
 
-        self.token = self.hub_conn.auth_service_get_bearer_token(
-            environment=self.environment
-        ).bearer_token
+        try:
+            bearer_token_response = self.hub_conn.auth_service_get_bearer_token(
+                environment=self.environment
+            )
+            self.bearer_token = bearer_token_response.bearer_token
+        except requests.exceptions.HTTPError as exc:
+            raise hub_error(exc) from exc
 
     def fetch_service_config(self):
         """Poll for service configuration changes."""
 
-        service_config_response = self.hub_conn.config_service_get_service_config(
-            hub.V1GetServiceConfigRequest(
-                version_seen=self.service_config_version,
-                service=hub.V1ServiceSelector(
-                    environment=self.environment,
-                    name=self.service_name,
-                    release=self.release,
-                ),
-                client_id=self.client_id,
+        try:
+            service_config_response = self.hub_conn.config_service_get_service_config(
+                hub.V1GetServiceConfigRequest(
+                    version_seen=self.service_config_version,
+                    service=hub.V1ServiceSelector(
+                        environment=self.environment,
+                        name=self.service_name,
+                        release=self.release,
+                    ),
+                    client_id=self.client_id,
+                )
             )
-        )
+        except requests.exceptions.HTTPError as exc:
+            raise hub_error(exc) from exc
+
         if service_config_response.version != self.service_config_version:
             self.service_config = service_config_response.config
             self.service_config_version = service_config_response.version
@@ -79,17 +89,21 @@ class StanzaConfigurationManager:
         existing_guard_config = self.guard_configs.get(guard_name)
         last_version_seen = existing_guard_config and existing_guard_config[0]
 
-        guard_config_response = self.hub_conn.config_service_get_guard_config(
-            hub.V1GetGuardConfigRequest(
-                version_seen=last_version_seen,
-                selector=hub.V1GuardServiceSelector(
-                    environment=self.environment,
-                    guard_name=guard_name,
-                    service_name=self.service_name,
-                    service_release=self.release,
-                ),
+        try:
+            guard_config_response = self.hub_conn.config_service_get_guard_config(
+                hub.V1GetGuardConfigRequest(
+                    version_seen=last_version_seen,
+                    selector=hub.V1GuardServiceSelector(
+                        environment=self.environment,
+                        guard_name=guard_name,
+                        service_name=self.service_name,
+                        service_release=self.release,
+                    ),
+                )
             )
-        )
+        except requests.exceptions.HTTPError as exc:
+            raise hub_error(exc) from exc
+
         if last_version_seen != guard_config_response.version:
             self.guard_configs[guard_name] = (
                 guard_config_response.version,
@@ -106,7 +120,7 @@ class StanzaConfigurationManager:
                 "New active guard config for guard '%s': %s",
                 guard_name,
                 json.dumps(
-                    self.guard_configs[guard_name].to_jsonable(),
+                    self.guard_configs[guard_name][1].to_jsonable(),
                     indent=2,
                     sort_keys=True,
                 ),

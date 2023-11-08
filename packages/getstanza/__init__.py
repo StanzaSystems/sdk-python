@@ -57,7 +57,8 @@ def init(
     # TODO: Initialize OTEL TextMapPropagator here
     # otel.InitTextMapPropagator(otel.StanzaHeaders{})
 
-    # TODO: Consider allowing this all to be setup on another thread.
+    # TODO: Consider allowing this all to be setup on another thread?
+
     configuration_manager = StanzaConfigurationManager(
         api_key=api_key,
         service_name=service_name,
@@ -66,6 +67,7 @@ def init(
         hub_address=hub_address,
     )
 
+    # TODO: Before PR make sure to make it not stop looping on network failure.
     hub_poller = StanzaHubPoller(
         configuration_manager=configuration_manager,
         interval=datetime.timedelta(seconds=15),

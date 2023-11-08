@@ -34,6 +34,7 @@ class StanzaHubPoller:
 
         # TODO: Await here once we get an asyncio compatible API client. Also
         # handle all guards that are in-use, not just service config.
-        self.configuration_manager.fetch_service_config()
-
-        await asyncio.sleep(self.interval.total_seconds())
+        try:
+            self.configuration_manager.fetch_service_config()
+        finally:
+            await asyncio.sleep(self.interval.total_seconds())
