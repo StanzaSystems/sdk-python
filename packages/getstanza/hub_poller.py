@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 from typing import Optional
 
 from getstanza.configuration_manager import StanzaConfigurationManager
@@ -13,28 +14,61 @@ class StanzaHubPoller:
         configuration_manager: StanzaConfigurationManager,
         interval: datetime.timedelta,
     ):
-        self.polling_task: Optional[asyncio.Task[None]] = None
+        self.__polling_task: Optional[asyncio.Task[None]] = None
+        self.__polling = False
+
         self.configuration_manager = configuration_manager
         self.interval = interval
 
-    def begin(self):
+    def start(self):
         """Begin polling with the configured interval."""
 
+        self.__polling = True
         self.__schedule_poll()
 
-    def __schedule_poll(self, _task: Optional[asyncio.Task[None]] = None):
-        """Execute a poll against Hub and schedules another poll for later."""
+    def stop(self):
+        """Stop polling Hub for configuration changes."""
 
-        loop = asyncio.get_running_loop()
-        self.polling_task = loop.create_task(self.__poll_hub())
-        self.polling_task.add_done_callback(self.__schedule_poll)
+        if self.__polling_task:
+            if self.__polling_task.cancel():
+                self.__polling = False
+                self.__polling_task = None
 
-    async def __poll_hub(self):
-        """Polls for updated configuration information from hub."""
+    async def __poll(self):
+        """Polls for updated configuration information from Hub."""
 
-        # TODO: Await here once we get an asyncio compatible API client. Also
-        # handle all guards that are in-use, not just service config.
+        # TODO: Gather and await Hub network tasks here once we get an asyncio
+        # compatible API client. Also handle guards at that.
+        self.configuration_manager.fetch_service_config()
+
+    async def __poll_and_wait(self, _task: Optional[asyncio.Task[None]] = None):
+        """Poll Hub, schedule a delay using interval, then another poll."""
+
         try:
-            self.configuration_manager.fetch_service_config()
+            if self.__polling:
+                await self.__poll()
         finally:
-            await asyncio.sleep(self.interval.total_seconds())
+            if self.__polling:
+                self.__schedule_wait()
+
+    def __schedule_poll(self, _task: Optional[asyncio.Task[None]] = None):
+        loop = asyncio.get_running_loop()
+        self.__polling_task = loop.create_task(self.__poll_and_wait())
+        self.__polling_task.add_done_callback(self.__handle_hub_poll_result)
+
+    def __schedule_wait(self, _task: Optional[asyncio.Task[None]] = None):
+        loop = asyncio.get_running_loop()
+        self.__polling_task = loop.create_task(
+            asyncio.sleep(self.interval.total_seconds())
+        )
+        self.__polling_task.add_done_callback(self.__schedule_poll)
+
+    def __handle_hub_poll_result(self, task: asyncio.Task):
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass  # Do not log task cancellations.
+        except Exception as exc:
+            logging.exception(
+                "Received unexpected exception while polling Hub: %s", exc
+            )

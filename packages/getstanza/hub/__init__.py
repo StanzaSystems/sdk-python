@@ -5697,6 +5697,7 @@ class RemoteCaller:
             method="post",
             url=url,
             json=data,
+            timeout=3
         )
 
         with contextlib.closing(resp):

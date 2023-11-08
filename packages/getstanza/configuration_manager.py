@@ -120,7 +120,7 @@ class StanzaConfigurationManager:
                 "New active guard config for guard '%s': %s",
                 guard_name,
                 json.dumps(
-                    self.guard_configs[guard_name][1].to_jsonable(),
+                    guard_config_response.config.to_jsonable(),
                     indent=2,
                     sort_keys=True,
                 ),

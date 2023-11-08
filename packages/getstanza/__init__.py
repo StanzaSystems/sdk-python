@@ -2,6 +2,7 @@
 Python SDK for adding Stanza Systems fault tolerance to your Python 3 service.
 """
 
+import asyncio
 import datetime
 import logging
 import os
@@ -70,6 +71,6 @@ def init(
     # TODO: Before PR make sure to make it not stop looping on network failure.
     hub_poller = StanzaHubPoller(
         configuration_manager=configuration_manager,
-        interval=datetime.timedelta(seconds=15),
+        interval=datetime.timedelta(seconds=3),  # 15
     )
-    hub_poller.begin()
+    hub_poller.start()
