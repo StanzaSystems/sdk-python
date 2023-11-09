@@ -1,11 +1,19 @@
 import json
 import logging
 import uuid
-from typing import MutableMapping, Optional
+from typing import MutableMapping, Optional, TypedDict
 
 import requests
 from getstanza import hub
 from getstanza.errors.hub import hub_error
+
+VersionedGuardConfig = TypedDict(
+    "VersionedGuardConfig",
+    {
+        "version": str,
+        "config": hub.V1GuardConfig,
+    },
+)
 
 
 class StanzaConfigurationManager:
@@ -38,7 +46,7 @@ class StanzaConfigurationManager:
         # TODO: Utilize type aliases whenever we upgrade to Python 3.12.
         self.__service_config: Optional[hub.V1ServiceConfig] = None
         self.__service_config_version: Optional[str] = None
-        self.__guard_configs: MutableMapping[str, tuple[str, hub.V1GuardConfig]] = {}
+        self.__guard_configs: MutableMapping[str, VersionedGuardConfig] = {}
         self.__bearer_token: Optional[str] = None
 
         # TODO: Add refetch logic for this whenever 'exp' happens.
@@ -48,7 +56,7 @@ class StanzaConfigurationManager:
         """Retrieves the guard config for a specified guard."""
 
         return (
-            self.__guard_configs[guard_name][1]
+            self.__guard_configs[guard_name]["config"]
             if guard_name in self.__guard_configs
             else None
         )
@@ -82,7 +90,7 @@ class StanzaConfigurationManager:
         except requests.exceptions.HTTPError as exc:
             raise hub_error(exc) from exc
 
-        if service_config_response.version != self.__service_config_version:
+        if service_config_response.config_data_sent:
             self.__service_config = service_config_response.config
             self.__service_config_version = service_config_response.version
 
@@ -102,7 +110,7 @@ class StanzaConfigurationManager:
         """Refetch guard configuration changes for a specific guard."""
 
         existing_guard_config = self.__guard_configs.get(guard_name)
-        last_version_seen = existing_guard_config and existing_guard_config[0]
+        last_version_seen = existing_guard_config and existing_guard_config["version"]
 
         try:
             guard_config_response = self.__hub_conn.config_service_get_guard_config(
@@ -119,11 +127,11 @@ class StanzaConfigurationManager:
         except requests.exceptions.HTTPError as exc:
             raise hub_error(exc) from exc
 
-        if last_version_seen != guard_config_response.version:
-            self.__guard_configs[guard_name] = (
-                guard_config_response.version,
-                guard_config_response.config,
-            )
+        if guard_config_response.config_data_sent:
+            self.__guard_configs[guard_name] = {
+                "version": guard_config_response.version,
+                "config": guard_config_response.config,
+            }
 
             logging.debug(
                 "Guard config for guard '%s' has changed from version '%s' to '%s'",
