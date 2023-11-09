@@ -39,6 +39,7 @@ class StanzaHubPoller:
         # TODO: Gather and await Hub network tasks here once we get an asyncio
         # compatible API client. Also handle guards at that.
         self.configuration_manager.fetch_service_config()
+        self.configuration_manager.refetch_known_guard_configs()
 
     async def __poll_interval(self, _task: Optional[asyncio.Task[None]] = None):
         """Poll Hub then schedule another poll in the future using interval."""
