@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import uuid
@@ -78,7 +79,7 @@ class StanzaConfigurationManager:
                 await self.__auth_service.auth_service_get_bearer_token(
                     async_req=True,
                     environment=self.environment,
-                )
+                ).get()
             )
             self.__bearer_token = bearer_token_response.bearer_token
         except ApiException as exc:
@@ -138,7 +139,7 @@ class StanzaConfigurationManager:
                             service_release=self.release,
                         ),
                     ),
-                )
+                ).get()
             )
         except ApiException as exc:
             raise hub_error(exc) from exc
@@ -166,6 +167,6 @@ class StanzaConfigurationManager:
     async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""
 
-        # TODO: Make asyncio friendly once generated API library is replaced.
-        for guard_name in self.__guard_configs:
-            await self.fetch_guard_config(guard_name)
+        async with asyncio.TaskGroup() as tg:
+            for guard_name in self.__guard_configs:
+                tg.create_task(self.fetch_guard_config(guard_name))
