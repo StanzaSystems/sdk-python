@@ -1,7 +1,7 @@
 import json
 from typing import Any, Mapping
 
-import requests
+from getstanza.hub.rest import ApiException
 
 
 class HubError(Exception):
@@ -16,11 +16,11 @@ class HubError(Exception):
         print(message)
 
 
-def hub_error(error: requests.exceptions.HTTPError):
+def hub_error(error: ApiException):
     """Construct a Hub error exception associated with the response code."""
 
     try:
-        response = json.loads(error.response.text)
+        response = json.loads(error.body)
     except json.JSONDecodeError as exc:
         raise error from exc
 

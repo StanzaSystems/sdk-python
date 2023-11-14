@@ -3,15 +3,25 @@ import logging
 import uuid
 from typing import MutableMapping, Optional, TypedDict
 
-import requests
 from getstanza import hub
 from getstanza.errors.hub import hub_error
+from getstanza.hub.api.auth_service_api import AuthServiceApi
+from getstanza.hub.api.config_service_api import ConfigServiceApi
+from getstanza.hub.api_client import ApiClient
+from getstanza.hub.configuration import Configuration
+from getstanza.hub.models.v1_get_guard_config_request import V1GetGuardConfigRequest
+from getstanza.hub.models.v1_get_service_config_request import V1GetServiceConfigRequest
+from getstanza.hub.models.v1_guard_config import V1GuardConfig
+from getstanza.hub.models.v1_guard_service_selector import V1GuardServiceSelector
+from getstanza.hub.models.v1_service_config import V1ServiceConfig
+from getstanza.hub.models.v1_service_selector import V1ServiceSelector
+from getstanza.hub.rest import ApiException
 
 VersionedGuardConfig = TypedDict(
     "VersionedGuardConfig",
     {
         "version": str,
-        "config": hub.V1GuardConfig,
+        "config": V1GuardConfig,
     },
 )
 
@@ -34,23 +44,22 @@ class StanzaConfigurationManager:
         self.hub_address = hub_address
         self.client_id = str(uuid.uuid4())
 
-        # TODO: There's a couple of things to note here.
-        #
-        # 1. Consider re-creating the API client whenever attributes it depends on change.
-        # 2. Configure a reasonable default timeout. This specific generated
-        # client is going to be replaced soon, so that's unhandled as of now.
-        self.__hub_conn = hub.RemoteCaller(
-            url_prefix=hub_address, headers={"X-Stanza-Key": api_key}
-        )
+        configuration = Configuration()
+        configuration.host = hub_address
+        configuration.api_key["X-Stanza-Key"] = api_key
+        api_client = ApiClient(configuration)
+
+        self.__config_service = ConfigServiceApi(api_client)
+        self.__auth_service = AuthServiceApi(api_client)
 
         # TODO: Utilize type aliases whenever we upgrade to Python 3.12.
-        self.__service_config: Optional[hub.V1ServiceConfig] = None
+        self.__service_config: Optional[V1ServiceConfig] = None
         self.__service_config_version: Optional[str] = None
         self.__guard_configs: MutableMapping[str, VersionedGuardConfig] = {}
         self.__bearer_token: Optional[str] = None
 
         # TODO: Add refetch logic for this whenever 'exp' happens.
-        self.fetch_otel_bearer_token()
+        # self.fetch_otel_bearer_token()
 
     def get_guard_config(self, guard_name: str) -> Optional[hub.V1GuardConfig]:
         """Retrieves the guard config for a specified guard."""
@@ -61,33 +70,39 @@ class StanzaConfigurationManager:
             else None
         )
 
-    def fetch_otel_bearer_token(self):
+    async def fetch_otel_bearer_token(self):
         """Fetch a new bearer token for use with the OTel collector."""
 
         try:
-            bearer_token_response = self.__hub_conn.auth_service_get_bearer_token(
-                environment=self.environment
+            bearer_token_response = (
+                await self.__auth_service.auth_service_get_bearer_token(
+                    async_req=True,
+                    environment=self.environment,
+                )
             )
             self.__bearer_token = bearer_token_response.bearer_token
-        except requests.exceptions.HTTPError as exc:
+        except ApiException as exc:
             raise hub_error(exc) from exc
 
-    def fetch_service_config(self):
+    async def fetch_service_config(self):
         """Fetch service configuration changes."""
 
         try:
-            service_config_response = self.__hub_conn.config_service_get_service_config(
-                hub.V1GetServiceConfigRequest(
-                    version_seen=self.__service_config_version,
-                    service=hub.V1ServiceSelector(
-                        environment=self.environment,
-                        name=self.service_name,
-                        release=self.release,
+            service_config_response = (
+                await self.__config_service.config_service_get_service_config(
+                    async_req=True,
+                    body=V1GetServiceConfigRequest(
+                        version_seen=self.__service_config_version,
+                        service=V1ServiceSelector(
+                            environment=self.environment,
+                            name=self.service_name,
+                            release=self.release,
+                        ),
+                        client_id=self.client_id,
                     ),
-                    client_id=self.client_id,
-                )
+                ).get()
             )
-        except requests.exceptions.HTTPError as exc:
+        except ApiException as exc:
             raise hub_error(exc) from exc
 
         if service_config_response.config_data_sent:
@@ -101,30 +116,31 @@ class StanzaConfigurationManager:
             )
             logging.debug(
                 "New active service config: %s",
-                json.dumps(
-                    self.__service_config.to_jsonable(), indent=2, sort_keys=True
-                ),
+                json.dumps(self.__service_config.to_dict(), indent=2, sort_keys=True),
             )
 
-    def fetch_guard_config(self, guard_name: str):
+    async def fetch_guard_config(self, guard_name: str):
         """Refetch guard configuration changes for a specific guard."""
 
         existing_guard_config = self.__guard_configs.get(guard_name)
         last_version_seen = existing_guard_config and existing_guard_config["version"]
 
         try:
-            guard_config_response = self.__hub_conn.config_service_get_guard_config(
-                hub.V1GetGuardConfigRequest(
-                    version_seen=last_version_seen,
-                    selector=hub.V1GuardServiceSelector(
-                        environment=self.environment,
-                        guard_name=guard_name,
-                        service_name=self.service_name,
-                        service_release=self.release,
+            guard_config_response = (
+                await self.__config_service.config_service_get_guard_config(
+                    async_req=True,
+                    body=V1GetGuardConfigRequest(
+                        version_seen=last_version_seen,
+                        selector=V1GuardServiceSelector(
+                            environment=self.environment,
+                            guard_name=guard_name,
+                            service_name=self.service_name,
+                            service_release=self.release,
+                        ),
                     ),
                 )
             )
-        except requests.exceptions.HTTPError as exc:
+        except ApiException as exc:
             raise hub_error(exc) from exc
 
         if guard_config_response.config_data_sent:
@@ -143,15 +159,13 @@ class StanzaConfigurationManager:
                 "New active guard config for guard '%s': %s",
                 guard_name,
                 json.dumps(
-                    guard_config_response.config.to_jsonable(),
-                    indent=2,
-                    sort_keys=True,
+                    guard_config_response.config.to_dict(), indent=2, sort_keys=True
                 ),
             )
 
-    def refetch_known_guard_configs(self):
+    async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""
 
         # TODO: Make asyncio friendly once generated API library is replaced.
         for guard_name in self.__guard_configs:
-            self.fetch_guard_config(guard_name)
+            await self.fetch_guard_config(guard_name)
