@@ -1,12 +1,17 @@
 """
-Python SDK for adding Stanza Systems fault tolerance to your python 3 service.
+Python SDK for adding Stanza Systems fault tolerance to your Python 3 service.
 """
 
+import asyncio
+import datetime
 import logging
 import os
 from typing import Optional
 
-from getstanza import state
+from getstanza.configuration_manager import StanzaConfigurationManager
+from getstanza.hub_poller import StanzaHubPoller
+
+CONFIG_POLL_INTERVAL_SECS = 15
 
 
 def init(
@@ -17,6 +22,7 @@ def init(
     hub_address: Optional[str] = None,
 ):
     """Use to initialize Stanza SDK"""
+
     logging.debug("Initializing Stanza")
 
     if not api_key:
@@ -54,10 +60,19 @@ def init(
     # TODO: Initialize OTEL TextMapPropagator here
     # otel.InitTextMapPropagator(otel.StanzaHeaders{})
 
-    state.New(
+    # TODO: Consider allowing this all to be setup on another thread so this
+    # works well with synchronous frameworks like Flask?
+
+    configuration_manager = StanzaConfigurationManager(
         api_key=api_key,
         service_name=service_name,
         service_release=service_release,
         environment=service_environment,
         hub_address=hub_address,
     )
+
+    hub_poller = StanzaHubPoller(
+        configuration_manager=configuration_manager,
+        interval=datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS),
+    )
+    hub_poller.start()

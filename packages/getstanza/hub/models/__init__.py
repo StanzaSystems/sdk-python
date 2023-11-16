@@ -1,7 +1,6 @@
 # coding: utf-8
 
 # flake8: noqa
-
 """
     Stanza Hub API
 
@@ -15,19 +14,7 @@
 
 from __future__ import absolute_import
 
-# import apis into sdk package
-from getstanza.hub.api.auth_service_api import AuthServiceApi
-from getstanza.hub.api.config_service_api import ConfigServiceApi
-from getstanza.hub.api.health_service_api import HealthServiceApi
-from getstanza.hub.api.quota_service_api import QuotaServiceApi
-from getstanza.hub.api.stream_balancer_service_api import StreamBalancerServiceApi
-from getstanza.hub.api.usage_service_api import UsageServiceApi
-
-# import ApiClient
-from getstanza.hub.api_client import ApiClient
-from getstanza.hub.configuration import Configuration
-
-# import models into sdk package
+# import models into model package
 from getstanza.hub.models.hubv1_tag import Hubv1Tag
 from getstanza.hub.models.protobuf_any import ProtobufAny
 from getstanza.hub.models.rpc_status import RpcStatus
