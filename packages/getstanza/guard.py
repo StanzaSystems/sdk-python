@@ -12,29 +12,30 @@ class Guard:
 
     def __init__(
         self,
-        guard: str,
-        feature: Optional[str] = None,
+        config: V1GuardConfig,
+        guard_name: str,
+        feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         tags=None,
     ):
-        self.name = guard
-        self.feature = feature
+        self.config = config
+        self.guard_name = guard_name
+        self.feature_name = feature_name
         self.priority_boost = priority_boost
         self.tags = tags
 
         self.__start = datetime.now(timezone.utc)
-        self.__config: Optional[V1GuardConfig] = None
 
         # TODO: Use enumerations or constants here, no magic numbers.
         self.__local_status = 0
         self.__quota_status = 0
         self.__token_status = 0
 
-    async def allowed(self) -> bool:
+    def allowed(self) -> bool:
         """Check if the Guard is currently allowing traffic."""
 
         # Always allow traffic when 'report only' is set.
-        if self.__config and self.__config.report_only:
+        if self.config and self.config.report_only:
             return True
 
         # Allow if all of the following checks have succeeded.
@@ -48,12 +49,10 @@ class Guard:
         # Disallow by default.
         return False
 
-    async def blocked(self) -> bool:
+    def blocked(self) -> bool:
         """Check if the Guard is currently disallowing traffic."""
 
         return not self.allowed()
 
-    async def end(self):
+    def end(self):
         """Called when the guarded logic comes to an end."""
-
-        pass

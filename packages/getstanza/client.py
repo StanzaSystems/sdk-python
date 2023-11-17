@@ -1,7 +1,9 @@
 import logging
+from typing import Optional
 
 from getstanza.configuration import StanzaConfiguration
 from getstanza.configuration_manager import StanzaConfigurationManager
+from getstanza.guard import Guard
 from getstanza.hub_poller import StanzaHubPoller
 
 
@@ -31,3 +33,25 @@ class StanzaClient:
         logging.debug("Initializing Stanza")
 
         self.hub_poller.start()
+
+    async def guard(
+        self,
+        guard_name: str,
+        feature: Optional[str] = None,
+        priority_boost: Optional[int] = None,
+        tags=None,
+    ) -> Guard:
+        """Initialize a guard and fetch its configuration if not cached."""
+
+        guard_config = self.config_manager.get_guard_config(guard_name)
+        if not guard_config:
+            await self.config_manager.fetch_guard_config(guard_name)
+            guard_config = self.config_manager.get_guard_config(guard_name)
+
+        return Guard(
+            guard_config,
+            guard_name,
+            feature_name=feature,
+            priority_boost=priority_boost,
+            tags=tags,
+        )

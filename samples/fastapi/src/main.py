@@ -4,7 +4,7 @@ import logging
 import sys
 
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
 from getstanza.client import StanzaClient
 from getstanza.configuration import StanzaConfiguration
@@ -53,22 +53,33 @@ def health():
 async def quote():
     """Returns a random quote from ZenQuotes using Requests"""
 
-    # stz = await stanza.Guard(stanza.ContextWithHeaders, "QuoteGuard")
+    stz = await stanza_client.guard("QuoteGuard")
+
+    # TODO: Guard error handling?
 
     try:
-        resp = requests.get("https://zenquotes.io/api/random", timeout=10)
-    except (ConnectionError, TimeoutError) as err:
-        logging.error(err)
-        return ""
+        if stz.blocked():
+            raise HTTPException(
+                status_code=429,
+                detail=f"Error: guard {stz.guard_name} is blocked",
+            )
 
-    if resp.status_code != requests.codes["ok"]:
-        logging.error("Error: %s %s", resp.status_code, resp.text)
-        return ""
+        try:
+            resp = requests.get("https://zenquotes.io/api/random", timeout=10)
+        except (ConnectionError, TimeoutError) as err:
+            logging.error(err)
+            return ""
 
-    try:
-        data = resp.json()
-    except requests.exceptions.JSONDecodeError as err:
-        logging.error("Error: %s %s", resp.status_code, err.strerror)
-        return ""
+        if resp.status_code != requests.codes["ok"]:
+            logging.error("Error: %s %s", resp.status_code, resp.text)
+            return ""
 
-    return "‟" + data[0]["q"] + "” -" + data[0]["a"] + "\n"
+        try:
+            data = resp.json()
+        except requests.exceptions.JSONDecodeError as err:
+            logging.error("Error: %s %s", resp.status_code, err.strerror)
+            return ""
+
+        return "‟" + data[0]["q"] + "” -" + data[0]["a"] + "\n"
+    finally:
+        stz.end()
