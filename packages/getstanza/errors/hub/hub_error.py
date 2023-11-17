@@ -13,8 +13,6 @@ class HubError(Exception):
         self.code = code
         self.details = details
 
-        print(message)
-
 
 def hub_error(error: ApiException):
     """Construct a Hub error exception associated with the response code."""

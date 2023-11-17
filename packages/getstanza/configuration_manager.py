@@ -5,6 +5,7 @@ import uuid
 from typing import MutableMapping, Optional, TypedDict
 
 from getstanza import hub
+from getstanza.configuration import StanzaConfiguration
 from getstanza.errors.hub import hub_error
 from getstanza.hub.api.auth_service_api import AuthServiceApi
 from getstanza.hub.api.config_service_api import ConfigServiceApi
@@ -30,24 +31,17 @@ VersionedGuardConfig = TypedDict(
 class StanzaConfigurationManager:
     """State manager for the active service configuration."""
 
-    def __init__(
-        self,
-        api_key: str,
-        service_name: str,
-        service_release: str,
-        environment: str,
-        hub_address: str,
-    ):
-        self.api_key = api_key
-        self.service_name = service_name
-        self.release = service_release
-        self.environment = environment
-        self.hub_address = hub_address
+    def __init__(self, config: StanzaConfiguration):
+        self.api_key = config.api_key
+        self.service_name = config.service_name
+        self.release = config.service_release
+        self.environment = config.environment
+        self.hub_address = config.hub_address
         self.client_id = str(uuid.uuid4())
 
         configuration = Configuration()
-        configuration.host = hub_address
-        configuration.api_key["X-Stanza-Key"] = api_key
+        configuration.host = config.hub_address
+        configuration.api_key["X-Stanza-Key"] = config.api_key
         api_client = ApiClient(configuration)
 
         self.__config_service = ConfigServiceApi(api_client)

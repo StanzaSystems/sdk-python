@@ -3,10 +3,11 @@
 import logging
 import sys
 
-import getstanza as stanza
 import requests
 from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
+from getstanza.client import StanzaClient
+from getstanza.configuration import StanzaConfiguration
 
 # FastAPI Example Service
 NAME = "fastapi-example"
@@ -23,14 +24,16 @@ logging.info("service init, name:%s, release:%s, env:%s", NAME, RELEASE, ENV)
 
 # Init Stanza fault tolerance library
 try:
-    stanza.init(
+    config = StanzaConfiguration(
         # api_key="YOUR-API-KEY-HERE",  # or via STANZA_API_KEY environment variable
         service_name=NAME,  # or via STANZA_SERVICE_NAME environment variable
         service_release=RELEASE,  # or via STANZA_SERVICE_RELEASE environment variable
-        service_environment=ENV,  # or via STANZA_ENVIRONMENT environment variable
+        environment=ENV,  # or via STANZA_ENVIRONMENT environment variable
     )
-except ValueError:
-    logging.exception("")
+    stanza_client = StanzaClient(config)
+    stanza_client.init()
+except ValueError as exc:
+    logging.exception(exc)
     sys.exit(1)
 
 # Alternate popular python HTTP frameworks:
@@ -49,6 +52,9 @@ def health():
 @app.get("/quote", response_class=PlainTextResponse)
 async def quote():
     """Returns a random quote from ZenQuotes using Requests"""
+
+    # stz = await stanza.Guard(stanza.ContextWithHeaders, "QuoteGuard")
+
     try:
         resp = requests.get("https://zenquotes.io/api/random", timeout=10)
     except (ConnectionError, TimeoutError) as err:
