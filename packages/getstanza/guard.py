@@ -1,7 +1,11 @@
-from datetime import datetime, timezone
-from typing import Optional
+from typing import Iterable, Optional
 
+from getstanza.common import LocalStatus, QuotaStatus, TokenStatus
+from getstanza.configuration import StanzaConfiguration
+from getstanza.hub.api.quota_service_api import QuotaServiceApi
+from getstanza.hub.api_client import ApiClient
 from getstanza.hub.models.v1_guard_config import V1GuardConfig
+from getstanza.hub.models.v1_token_lease import V1TokenLease
 
 
 class Guard:
@@ -12,39 +16,89 @@ class Guard:
 
     def __init__(
         self,
-        config: V1GuardConfig,
+        api_client: ApiClient,
+        stanza_config: StanzaConfiguration,
+        guard_config: V1GuardConfig,
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
+        default_weight: Optional[float] = None,
         tags=None,
     ):
-        self.config = config
+        self.api_client = api_client
+        self.stanza_config = stanza_config
+        self.guard_config = guard_config
         self.guard_name = guard_name
         self.feature_name = feature_name
         self.priority_boost = priority_boost
+        self.default_weight = default_weight
         self.tags = tags
 
-        self.__start = datetime.now(timezone.utc)
+        self.__quota_service = QuotaServiceApi(self.api_client)
 
-        # TODO: Use enumerations or constants here, no magic numbers.
-        self.__local_status = 0
-        self.__quota_status = 0
-        self.__token_status = 0
+        self.__local_status = LocalStatus.LOCAL_UNSPECIFIED
+        self.__quota_status = QuotaStatus.QUOTA_UNSPECIFIED
+        self.__token_status = TokenStatus.TOKEN_UNSPECIFIED
+
+        self.__cached_leases: list[V1TokenLease] = []
+
+    async def run(self, tokens: Optional[Iterable[str]] = None):
+        """Run all guard checks and update guard statuses."""
+
+        # TODO: Add local check here against Sentinel.
+        # self.check_local()
+
+        # Ingress token check
+        # self.check_token(tokens)
+
+        self.check_quota()
+
+    def check_local(self):
+        """Check using Sentinel."""
+
+        raise NotImplementedError
+
+    def check_token(self, tokens: Optional[Iterable[str]] = None) -> int:
+        """Validate using the ingress token if configured to do so."""
+
+        raise NotImplementedError
+
+    def check_quota(self) -> int:
+        """Quota check using token leases."""
+
+        # token_lease_request = V1GetTokenLeaseRequest(
+        #     selector=V1GuardFeatureSelector(
+        #         environment=self.stanza_config.environment,
+        #         guard_name=self.guard_name,
+        #         feature_name=self.feature_name,
+        #         tags=[],
+        #     ),
+        #     client_id=self.stanza_config.client_id,
+        #     priority_boost=self.priority_boost,
+        #     default_weight=self.default_weight,
+        # )
+
+        # token_lease_response = await self.__quota_service.quota_service_get_token_lease(
+        #     async_req=True,
+        #     body=token_lease_request,
+        # )
+
+        return self.__quota_status
 
     def allowed(self) -> bool:
         """Check if the Guard is currently allowing traffic."""
 
         # Always allow traffic when 'report only' is set.
-        if self.config and self.config.report_only:
+        if self.guard_config and self.guard_config.report_only:
             return True
 
         # Allow if all of the following checks have succeeded.
-        # if (
-        #     self.__local_status != Local.LOCAL_BLOCKED
-        #     and self.__quota_status != Quota.QUOTA_BLOCKED
-        #     and self.__token_status != Token.TOKEN_NOT_VALID
-        # ):
-        #     return True
+        if (
+            self.__local_status != LocalStatus.LOCAL_BLOCKED
+            and self.__quota_status != QuotaStatus.QUOTA_BLOCKED
+            and self.__token_status != TokenStatus.TOKEN_NOT_VALID
+        ):
+            return True
 
         # Disallow by default.
         return False

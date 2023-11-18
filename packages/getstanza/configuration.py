@@ -1,5 +1,6 @@
 import datetime
 import os
+import uuid
 from typing import Optional
 
 CONFIG_POLL_INTERVAL_SECS = 15
@@ -66,3 +67,4 @@ class StanzaConfiguration:
             self.hub_address = hub_address
 
         self.interval = datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS)
+        self.client_id = str(uuid.uuid4())
