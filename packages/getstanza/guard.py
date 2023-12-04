@@ -2,12 +2,14 @@ from typing import Iterable, Optional
 
 from getstanza.common import GuardedStatus, LocalStatus, QuotaStatus, TokenStatus
 from getstanza.configuration import StanzaConfiguration
+from getstanza.errors.hub import hub_error
 from getstanza.hub.api.quota_service_api import QuotaServiceApi
 from getstanza.hub.api_client import ApiClient
 from getstanza.hub.models.v1_get_token_lease_request import V1GetTokenLeaseRequest
 from getstanza.hub.models.v1_guard_config import V1GuardConfig
 from getstanza.hub.models.v1_guard_feature_selector import V1GuardFeatureSelector
 from getstanza.hub.models.v1_token_lease import V1TokenLease
+from getstanza.hub.rest import ApiException
 
 
 class Guard:
@@ -58,7 +60,7 @@ class Guard:
         self.check_local()
 
         # Ingress token check
-        # await self.check_token(tokens)
+        self.check_token(tokens)
 
         # Quota check
         await self.check_quota()
@@ -70,33 +72,54 @@ class Guard:
     def check_token(self, tokens: Optional[Iterable[str]] = None) -> int:
         """Validate using the ingress token if configured to do so."""
 
+        if not self.guard_config.validate_ingress_tokens:
+            self.__token_status = TokenStatus.TOKEN_EVAL_DISABLED
+            return self.__token_status
+
         raise NotImplementedError
 
     async def check_quota(self) -> int:
         """Quota check using token leases."""
 
+        if not self.guard_config.check_quota:
+            self.__quota_status = QuotaStatus.QUOTA_EVAL_DISABLED
+            return self.__quota_status
+
         # TODO: Check baggage for stz-feat and stz-boost
 
         # TODO: Check for matching cached leases first
 
-        # token_lease_request = V1GetTokenLeaseRequest(
-        #     selector=V1GuardFeatureSelector(
-        #         environment=self.stanza_config.environment,
-        #         guard_name=self.guard_name,
-        #         feature_name=self.feature_name,
-        #         tags=[],
-        #     ),
-        #     client_id=self.stanza_config.client_id,
-        #     priority_boost=self.priority_boost,
-        #     default_weight=self.default_weight,
-        # )
+        token_lease_request = V1GetTokenLeaseRequest(
+            selector=V1GuardFeatureSelector(
+                environment=self.stanza_config.environment,
+                guard_name=self.guard_name,
+                feature_name=self.feature_name,
+                tags=[],
+            ),
+            client_id=self.stanza_config.client_id,
+            priority_boost=self.priority_boost,
+            default_weight=self.default_weight,
+        )
 
-        # token_lease_response = await self.__quota_service.quota_service_get_token_lease(
-        #     async_req=True,
-        #     body=token_lease_request,
-        # )
+        try:
+            token_lease_response = (
+                await self.__quota_service.quota_service_get_token_lease(
+                    async_req=True,
+                    body=token_lease_request,
+                ).get()
+            )
+        except ApiException as exc:
+            raise hub_error(exc) from exc
 
-        # print(token_lease_response)
+        if token_lease_response.granted:
+            if len(token_lease_response.leases) > 1:
+                # TODO: cache extra leases
+                raise NotImplementedError
+
+            self.__quota_token = token_lease_response.leases[0].token
+            self.__quota_status = QuotaStatus.QUOTA_GRANTED
+        else:
+            self.__quota_status = QuotaStatus.QUOTA_BLOCKED
 
         return self.__quota_status
 
