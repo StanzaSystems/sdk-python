@@ -5,7 +5,6 @@ from getstanza.configuration import StanzaConfiguration
 from getstanza.configuration_manager import StanzaConfigurationManager
 from getstanza.errors.hub import hub_error
 from getstanza.guard import Guard
-from getstanza.hub import api_client
 from getstanza.hub.api.auth_service_api import AuthServiceApi
 from getstanza.hub.api_client import ApiClient
 from getstanza.hub.configuration import Configuration

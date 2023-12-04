@@ -4,7 +4,9 @@ from getstanza.common import GuardedStatus, LocalStatus, QuotaStatus, TokenStatu
 from getstanza.configuration import StanzaConfiguration
 from getstanza.hub.api.quota_service_api import QuotaServiceApi
 from getstanza.hub.api_client import ApiClient
+from getstanza.hub.models.v1_get_token_lease_request import V1GetTokenLeaseRequest
 from getstanza.hub.models.v1_guard_config import V1GuardConfig
+from getstanza.hub.models.v1_guard_feature_selector import V1GuardFeatureSelector
 from getstanza.hub.models.v1_token_lease import V1TokenLease
 
 
@@ -38,6 +40,7 @@ class Guard:
         self.failure = GuardedStatus.GUARDED_FAILURE
 
         self.__quota_service = QuotaServiceApi(self.api_client)
+        self.__quota_token: Optional[str] = None
 
         self.__local_status = LocalStatus.LOCAL_UNSPECIFIED
         self.__quota_status = QuotaStatus.QUOTA_UNSPECIFIED
@@ -55,10 +58,10 @@ class Guard:
         self.check_local()
 
         # Ingress token check
-        # self.check_token(tokens)
+        # await self.check_token(tokens)
 
         # Quota check
-        self.check_quota()
+        await self.check_quota()
 
     def check_local(self):
         """Check using Sentinel."""
@@ -69,8 +72,12 @@ class Guard:
 
         raise NotImplementedError
 
-    def check_quota(self) -> int:
+    async def check_quota(self) -> int:
         """Quota check using token leases."""
+
+        # TODO: Check baggage for stz-feat and stz-boost
+
+        # TODO: Check for matching cached leases first
 
         # token_lease_request = V1GetTokenLeaseRequest(
         #     selector=V1GuardFeatureSelector(
@@ -88,6 +95,8 @@ class Guard:
         #     async_req=True,
         #     body=token_lease_request,
         # )
+
+        # print(token_lease_response)
 
         return self.__quota_status
 
@@ -117,6 +126,37 @@ class Guard:
         """Check if the Guard is currently disallowing traffic."""
 
         return not self.allowed()
+
+    def block_message(self) -> str:
+        """Returns the reason for the block as a human readable string."""
+        if self.__local_status is LocalStatus.LOCAL_BLOCKED:
+            return ""
+
+        if self.__token_status is TokenStatus.TOKEN_NOT_VALID:
+            return "Invalid or expired X-Stanza-Token."
+
+        if self.__quota_status is QuotaStatus.QUOTA_BLOCKED:
+            return "Stanza quota exhausted. Please try again later."
+
+        return ""
+
+    def block_reason(self) -> str:
+        """Returns the reason for the block as an enum."""
+
+        if self.__local_status is LocalStatus.LOCAL_BLOCKED:
+            return str(LocalStatus.LOCAL_BLOCKED)
+
+        if self.__token_status is TokenStatus.TOKEN_NOT_VALID:
+            return str(TokenStatus.TOKEN_NOT_VALID)
+
+        if self.__quota_status is QuotaStatus.QUOTA_BLOCKED:
+            return str(QuotaStatus.QUOTA_BLOCKED)
+
+        return ""
+
+    def quota_token(self) -> str:
+        """Returns the quota token for this request."""
+        return self.__quota_token
 
     def end(self, status: int):
         """Called when the guarded logic comes to an end."""
