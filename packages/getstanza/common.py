@@ -1,6 +1,14 @@
 from enum import Enum
 
 
+class GuardedStatus(Enum):
+    """Indicate success or failure of the guarded code block"""
+
+    GUARDED_UNKNOWN = 0
+    GUARDED_SUCCESS = 1
+    GUARDED_FAILURE = 2
+
+
 class LocalStatus(Enum):
     """Local related guard reasons used by Stanza SDKs"""
 

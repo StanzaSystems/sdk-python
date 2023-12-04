@@ -4,8 +4,7 @@ import logging
 import sys
 
 import requests
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi import FastAPI, HTTPException, status
 from getstanza.client import StanzaClient
 from getstanza.configuration import StanzaConfiguration
 
@@ -49,37 +48,39 @@ def health():
     return "OK"
 
 
-@app.get("/quote", response_class=PlainTextResponse)
+@app.get("/quote")
 async def quote():
     """Returns a random quote from ZenQuotes using Requests"""
 
-    stz = await stanza_client.guard("QuoteGuard")
+    # 📛 Name the Stanza Guard which protects this workflow
+    stz = await stanza_client.guard("FamousQuotes")
 
-    # TODO: Guard error handling?
+    # 🪵 Check for and log any returned error messages
+    if stz.error():
+        logging.error(stz.error())
 
+    # 🚫 Stanza Guard has *blocked* this workflow log the error and raise an HTTPException
+    if stz.blocked():
+        logging.error(stz.block_message(), extra={"reason": stz.block_reason()})
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={"msg": stz.block_message(), "reason": stz.block_reason()},
+        )
+
+    # ✅ Stanza Guard has *allowed* this workflow, business logic goes here.
     try:
-        if stz.blocked():
-            raise HTTPException(
-                status_code=429,
-                detail=f"Error: guard {stz.guard_name} is blocked",
-            )
+        resp = requests.get("https://zenquotes.io/api/random", timeout=10)
+    except (ConnectionError, TimeoutError) as req_exc:
+        stz.end(stz.failure)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc
+        ) from req_exc
 
-        try:
-            resp = requests.get("https://zenquotes.io/api/random", timeout=10)
-        except (ConnectionError, TimeoutError) as err:
-            logging.error(err)
-            return ""
+    # 🎉 Happy path, our "business logic" succeeded
+    if resp.status_code is status.HTTP_200_OK:
+        stz.end(stz.success)
+        return resp.json()
 
-        if resp.status_code != requests.codes["ok"]:
-            logging.error("Error: %s %s", resp.status_code, resp.text)
-            return ""
-
-        try:
-            data = resp.json()
-        except requests.exceptions.JSONDecodeError as err:
-            logging.error("Error: %s %s", resp.status_code, err.strerror)
-            return ""
-
-        return "‟" + data[0]["q"] + "” -" + data[0]["a"] + "\n"
-    finally:
-        stz.end()
+    # 😭 Sad path, our "business logic" failed
+    stz.end(stz.failure)
+    raise HTTPException(status_code=resp.status_code, detail=resp.text)

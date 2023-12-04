@@ -1,6 +1,6 @@
 from typing import Iterable, Optional
 
-from getstanza.common import LocalStatus, QuotaStatus, TokenStatus
+from getstanza.common import GuardedStatus, LocalStatus, QuotaStatus, TokenStatus
 from getstanza.configuration import StanzaConfiguration
 from getstanza.hub.api.quota_service_api import QuotaServiceApi
 from getstanza.hub.api_client import ApiClient
@@ -34,6 +34,9 @@ class Guard:
         self.default_weight = default_weight
         self.tags = tags
 
+        self.success = GuardedStatus.GUARDED_SUCCESS
+        self.failure = GuardedStatus.GUARDED_FAILURE
+
         self.__quota_service = QuotaServiceApi(self.api_client)
 
         self.__local_status = LocalStatus.LOCAL_UNSPECIFIED
@@ -45,18 +48,21 @@ class Guard:
     async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
 
-        # TODO: Add local check here against Sentinel.
-        # self.check_local()
+        # Config state check
+        # TODO
+
+        # Local (Sentinel) check
+        self.check_local()
 
         # Ingress token check
         # self.check_token(tokens)
 
+        # Quota check
         self.check_quota()
 
     def check_local(self):
         """Check using Sentinel."""
-
-        raise NotImplementedError
+        self.__local_status = LocalStatus.LOCAL_NOT_SUPPORTED
 
     def check_token(self, tokens: Optional[Iterable[str]] = None) -> int:
         """Validate using the ingress token if configured to do so."""
@@ -85,6 +91,10 @@ class Guard:
 
         return self.__quota_status
 
+    def error(self) -> str:
+        """If there was an error, return the message as a string."""
+        return ""
+
     def allowed(self) -> bool:
         """Check if the Guard is currently allowing traffic."""
 
@@ -108,5 +118,5 @@ class Guard:
 
         return not self.allowed()
 
-    def end(self):
+    def end(self, status: int):
         """Called when the guarded logic comes to an end."""
