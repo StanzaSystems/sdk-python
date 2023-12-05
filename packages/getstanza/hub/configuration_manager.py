@@ -49,6 +49,7 @@ class StanzaHubConfigurationManager:
 
     async def fetch_otel_bearer_token(self):
         """Fetch a new bearer token for use with the OTel collector."""
+
         try:
             bearer_token_response = self.__auth_service.GetBearerToken(
                 metadata=self.config.metadata
@@ -60,7 +61,9 @@ class StanzaHubConfigurationManager:
 
     async def fetch_service_config(self):
         """Fetch service configuration changes."""
+
         last_version_seen = self.__service_config_version
+
         try:
             service_config_response = self.__config_service.GetServiceConfig(
                 metadata=self.config.metadata,
@@ -135,8 +138,9 @@ class StanzaHubConfigurationManager:
     async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""
 
-        tasks = []
-        for guard_name in self.__guard_configs:
-            tasks.append(asyncio.create_task(self.fetch_guard_config(guard_name)))
+        tasks = [
+            asyncio.create_task(self.fetch_guard_config(guard_name))
+            for guard_name in self.__guard_configs
+        ]
         if len(tasks) > 0:
             await asyncio.wait(tasks)

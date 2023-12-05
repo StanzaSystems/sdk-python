@@ -34,4 +34,5 @@ class StanzaHub:
 
     def start_poller(self):
         """Start async polling of Hub for Service and Guard configs"""
+
         self.hub_poller.start()

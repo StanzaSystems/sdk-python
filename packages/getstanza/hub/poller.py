@@ -35,11 +35,11 @@ class StanzaHubPoller:
     async def __poll(self):
         """Polls for updated configuration information from Hub."""
 
-        tasks = [
-            asyncio.create_task(self.config_manager.fetch_service_config()),
-            asyncio.create_task(self.config_manager.refetch_known_guard_configs()),
+        configuration_fetch_tasks = [
+            asyncio.ensure_future(self.config_manager.fetch_service_config()),
+            asyncio.ensure_future(self.config_manager.refetch_known_guard_configs()),
         ]
-        await asyncio.wait(tasks)
+        await asyncio.wait(configuration_fetch_tasks)
 
     async def __poll_interval(self, _task: Optional[asyncio.Task[None]] = None):
         """Poll Hub then schedule another poll in the future using interval."""
@@ -53,8 +53,7 @@ class StanzaHubPoller:
                 loop.call_later(self.interval.total_seconds(), self.__schedule_poll)
 
     def __schedule_poll(self, _task: Optional[asyncio.Task[None]] = None):
-        loop = asyncio.get_running_loop()
-        self.__polling_task = loop.create_task(self.__poll_interval())
+        self.__polling_task = asyncio.create_task(self.__poll_interval())
         self.__polling_task.add_done_callback(self.__handle_hub_poll_result)
 
     def __handle_hub_poll_result(self, task: asyncio.Task):

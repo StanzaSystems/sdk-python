@@ -45,6 +45,7 @@ app = FastAPI(title=NAME, version=RELEASE, debug=DEBUG)
 @app.get("/healthz")
 def health():
     """Returns OK if server is healthy"""
+
     return "OK"
 
 
@@ -56,15 +57,15 @@ async def quote():
     stz = await stanza_client.guard("FamousQuotes")
 
     # 🪵 Check for and log any returned error messages
-    if stz.error():
-        logging.error(stz.error())
+    if stz.error:
+        logging.error(stz.error)
 
     # 🚫 Stanza Guard has *blocked* this workflow log the error and raise an HTTPException
     if stz.blocked():
-        logging.error(stz.block_message(), extra={"reason": stz.block_reason()})
+        logging.error(stz.block_message, extra={"reason": stz.block_reason})
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={"msg": stz.block_message(), "reason": stz.block_reason()},
+            detail={"msg": stz.block_message, "reason": stz.block_reason},
         )
 
     # ✅ Stanza Guard has *allowed* this workflow, business logic goes here.
