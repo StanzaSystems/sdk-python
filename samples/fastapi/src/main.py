@@ -23,14 +23,14 @@ logging.info("service init, name:%s, release:%s, env:%s", NAME, RELEASE, ENV)
 
 # Init Stanza fault tolerance library
 try:
-    config = StanzaConfiguration(
-        # api_key="YOUR-API-KEY-HERE",  # or via STANZA_API_KEY environment variable
-        service_name=NAME,  # or via STANZA_SERVICE_NAME environment variable
-        service_release=RELEASE,  # or via STANZA_SERVICE_RELEASE environment variable
-        environment=ENV,  # or via STANZA_ENVIRONMENT environment variable
+    stanza_client = StanzaClient(
+        StanzaConfiguration(
+            # api_key="YOUR-API-KEY-HERE",  # or via STANZA_API_KEY environment variable
+            service_name=NAME,  # or via STANZA_SERVICE_NAME environment variable
+            service_release=RELEASE,  # or via STANZA_SERVICE_RELEASE environment variable
+            environment=ENV,  # or via STANZA_ENVIRONMENT environment variable
+        )
     )
-    stanza_client = StanzaClient(config)
-    stanza_client.init()
 except ValueError as exc:
     logging.exception(exc)
     sys.exit(1)
@@ -73,7 +73,7 @@ async def quote():
     except (ConnectionError, TimeoutError) as req_exc:
         stz.end(stz.failure)
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=req_exc
         ) from req_exc
 
     # 🎉 Happy path, our "business logic" succeeded

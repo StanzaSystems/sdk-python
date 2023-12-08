@@ -1,8 +1,6 @@
 import json
 from typing import Any, Mapping
 
-from getstanza.hub.rest import ApiException
-
 
 class HubError(Exception):
     """Generic HubError that is a base class of all Hub error exceptions."""
@@ -14,7 +12,7 @@ class HubError(Exception):
         self.details = details
 
 
-def hub_error(error: ApiException):
+def hub_error(error: Exception):
     """Construct a Hub error exception associated with the response code."""
 
     try:

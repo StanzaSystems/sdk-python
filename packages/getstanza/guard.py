@@ -1,15 +1,10 @@
+import logging
 from typing import Iterable, Optional
 
 from getstanza.common import GuardedStatus, LocalStatus, QuotaStatus, TokenStatus
 from getstanza.configuration import StanzaConfiguration
 from getstanza.errors.hub import hub_error
-from getstanza.hub.api.quota_service_api import QuotaServiceApi
-from getstanza.hub.api_client import ApiClient
-from getstanza.hub.models.v1_get_token_lease_request import V1GetTokenLeaseRequest
-from getstanza.hub.models.v1_guard_config import V1GuardConfig
-from getstanza.hub.models.v1_guard_feature_selector import V1GuardFeatureSelector
-from getstanza.hub.models.v1_token_lease import V1TokenLease
-from getstanza.hub.rest import ApiException
+from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
 
 
 class Guard:
@@ -20,16 +15,15 @@ class Guard:
 
     def __init__(
         self,
-        api_client: ApiClient,
+        quota_service: quota_pb2_grpc.QuotaServiceStub,
         stanza_config: StanzaConfiguration,
-        guard_config: V1GuardConfig,
+        guard_config: config_pb2.GuardConfig,
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
         tags=None,
     ):
-        self.api_client = api_client
         self.stanza_config = stanza_config
         self.guard_config = guard_config
         self.guard_name = guard_name
@@ -41,14 +35,14 @@ class Guard:
         self.success = GuardedStatus.GUARDED_SUCCESS
         self.failure = GuardedStatus.GUARDED_FAILURE
 
-        self.__quota_service = QuotaServiceApi(self.api_client)
+        self.__quota_service = quota_service
         self.__quota_token: Optional[str] = None
 
         self.__local_status = LocalStatus.LOCAL_UNSPECIFIED
         self.__quota_status = QuotaStatus.QUOTA_UNSPECIFIED
         self.__token_status = TokenStatus.TOKEN_UNSPECIFIED
 
-        self.__cached_leases: list[V1TokenLease] = []
+        self.__cached_leases: list[quota_pb2.TokenLease] = []
 
     async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
@@ -89,11 +83,11 @@ class Guard:
 
         # TODO: Check for matching cached leases first
 
-        token_lease_request = V1GetTokenLeaseRequest(
-            selector=V1GuardFeatureSelector(
-                environment=self.stanza_config.environment,
+        token_lease_request = quota_pb2.GetTokenLeaseRequest(
+            selector=common_pb2.GuardFeatureSelector(
                 guard_name=self.guard_name,
                 feature_name=self.feature_name,
+                environment=self.stanza_config.environment,
                 tags=[],
             ),
             client_id=self.stanza_config.client_id,
@@ -102,19 +96,17 @@ class Guard:
         )
 
         try:
-            token_lease_response = (
-                await self.__quota_service.quota_service_get_token_lease(
-                    async_req=True,
-                    body=token_lease_request,
-                ).get()
+            token_lease_response = self.__quota_service.GetTokenLease(
+                request=token_lease_request,
+                metadata=self.stanza_config.metadata,
             )
-        except ApiException as exc:
+        except Exception as exc:
             raise hub_error(exc) from exc
 
         if token_lease_response.granted:
             if len(token_lease_response.leases) > 1:
                 # TODO: cache extra leases
-                raise NotImplementedError
+                logging.debug("Extra leases: %s", len(token_lease_response.leases) - 1)
 
             self.__quota_token = token_lease_response.leases[0].token
             self.__quota_status = QuotaStatus.QUOTA_GRANTED
