@@ -18,22 +18,8 @@ class StanzaClient:
         self.config = config
         self.__hub = StanzaHub(config)
 
-        # configuration = Configuration()
-        # configuration.host = config.hub_address
-        # configuration.api_key["X-Stanza-Key"] = config.api_key
-        # self.api_client = ApiClient(configuration)
-
-        # self.config = config
-        # self.config_manager = StanzaConfigurationManager(self.api_client, config)
-        # self.hub_poller = StanzaHubPoller(
-        #     config_manager=self.config_manager, interval=config.interval
-        # )
-
-        # self.__auth_service = AuthServiceApi(self.api_client)
-        # self.__bearer_token: Optional[str] = None
-
         # TODO: Add refetch logic for this whenever 'exp' happens.
-        # self.fetch_otel_bearer_token()
+        # self.__hub.fetch_otel_bearer_token()
 
         # TODO: Initialize OTEL TextMapPropagator here
         # otel.InitTextMapPropagator(otel.StanzaHeaders{})

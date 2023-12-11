@@ -1,17 +1,9 @@
 import asyncio
-
-# import json
 import logging
 from typing import MutableMapping, Optional, TypedDict
 
+import grpc
 from getstanza.configuration import StanzaConfiguration
-from getstanza.errors.hub import hub_error
-
-# import stanza.hub.v1 as hubv1
-# from stanza.hub.v1 import config_pb2 as hubv1_config
-# from stanza.hub.v1.config_pb2 import GetGuardConfigRequest
-# import stanza.hub.v1.config_pb2 as stanza_dot_hub_dot_v1_dot_config__pb2
-# from stanza.hub.v1 import config_pb2 as hubv1_config
 from stanza.hub.v1 import auth_pb2_grpc, common_pb2, config_pb2, config_pb2_grpc
 
 VersionedGuardConfig = TypedDict(
@@ -23,7 +15,7 @@ VersionedGuardConfig = TypedDict(
 )
 
 
-class StanzaConfigurationManager:
+class StanzaHubConfigurationManager:
     """State manager for the active service configuration."""
 
     def __init__(
@@ -58,12 +50,12 @@ class StanzaConfigurationManager:
                 metadata=self.config.metadata
             )
             self.__otel_bearer_token = bearer_token_response.bearer_token
-        except Exception as exc:
-            raise hub_error(exc) from exc
+        except grpc.RpcError as rpc_error:
+            logging.error(rpc_error.debug_error_string())
+            return
 
     async def fetch_service_config(self):
         """Fetch service configuration changes."""
-
         last_version_seen = self.__service_config_version
         try:
             service_config_response = self.__config_service.GetServiceConfig(
@@ -78,8 +70,9 @@ class StanzaConfigurationManager:
                     ),
                 ),
             )
-        except Exception as exc:
-            raise hub_error(exc) from exc
+        except grpc.RpcError as rpc_error:
+            logging.error(rpc_error.debug_error_string())
+            return
 
         if service_config_response.config_data_sent:
             self.__service_config = service_config_response.config
@@ -109,8 +102,9 @@ class StanzaConfigurationManager:
                     ),
                 ),
             )
-        except Exception as exc:
-            raise hub_error(exc) from exc
+        except grpc.RpcError as rpc_error:
+            logging.error(rpc_error.debug_error_string())
+            return
 
         if guard_config_response.config_data_sent:
             self.__guard_configs[guard_name] = {
@@ -129,10 +123,8 @@ class StanzaConfigurationManager:
     async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""
 
-        tasks = [
-            asyncio.create_task(
-                self.fetch_guard_config(guard_name)
-                for guard_name in self.__guard_configs
-            )
-        ]
-        await asyncio.wait(tasks)
+        tasks = []
+        for guard_name in self.__guard_configs:
+            tasks.append(asyncio.create_task(self.fetch_guard_config(guard_name)))
+        if len(tasks) > 0:
+            await asyncio.wait(tasks)
