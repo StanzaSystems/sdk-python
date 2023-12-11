@@ -3,7 +3,7 @@ import datetime
 import logging
 from typing import Optional
 
-from getstanza.configuration_manager import StanzaConfigurationManager
+from getstanza.hub.configuration_manager import StanzaHubConfigurationManager
 
 
 class StanzaHubPoller:
@@ -11,7 +11,7 @@ class StanzaHubPoller:
 
     def __init__(
         self,
-        config_manager: StanzaConfigurationManager,
+        config_manager: StanzaHubConfigurationManager,
         interval: datetime.timedelta,
     ):
         self.__polling_task: Optional[asyncio.Task[None]] = None
@@ -35,9 +35,11 @@ class StanzaHubPoller:
     async def __poll(self):
         """Polls for updated configuration information from Hub."""
 
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(self.config_manager.fetch_service_config())
-            tg.create_task(self.config_manager.refetch_known_guard_configs())
+        tasks = [
+            asyncio.create_task(self.config_manager.fetch_service_config()),
+            asyncio.create_task(self.config_manager.refetch_known_guard_configs()),
+        ]
+        await asyncio.wait(tasks)
 
     async def __poll_interval(self, _task: Optional[asyncio.Task[None]] = None):
         """Poll Hub then schedule another poll in the future using interval."""

@@ -6,7 +6,7 @@ authors = ["Matthew Girard <msg@sre.is>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.9"
 fastapi = "^0.104.1"
 requests = "^2.31.0"
 uvicorn = "^0.23.2"

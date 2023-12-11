@@ -62,9 +62,10 @@ class StanzaConfiguration:
             if os.environ.get("STANZA_HUB_ADDRESS"):
                 self.hub_address = os.environ.get("STANZA_HUB_ADDRESS")
             else:
-                self.hub_address = "https://hub.stanzasys.co"
+                self.hub_address = "hub.stanzasys.co:9020"
         else:
             self.hub_address = hub_address
 
         self.interval = datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS)
         self.client_id = str(uuid.uuid4())
+        self.metadata = [("x-stanza-key", self.api_key)]
