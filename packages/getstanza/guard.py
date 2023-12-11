@@ -2,13 +2,10 @@ import logging
 from enum import Enum
 from typing import Iterable, Optional
 
+import grpc
 from getstanza.configuration import StanzaConfiguration
-from getstanza.errors.hub import hub_error
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
-from stanza.hub.v1.common_pb2 import Config as ConfigStatus
-from stanza.hub.v1.common_pb2 import Local as LocalStatus
-from stanza.hub.v1.common_pb2 import Quota as QuotaStatus
-from stanza.hub.v1.common_pb2 import Token as TokenStatus
+from stanza.hub.v1.common_pb2 import Config, Local, Quota, Token
 
 
 class GuardedStatus(Enum):
@@ -30,7 +27,7 @@ class Guard:
         quota_service: quota_pb2_grpc.QuotaServiceStub,
         stanza_config: StanzaConfiguration,
         guard_config: config_pb2.GuardConfig,
-        guard_config_status: ConfigStatus,
+        guard_config_status: Config,
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
@@ -52,9 +49,9 @@ class Guard:
         self.__quota_token: Optional[str] = None
 
         self.__config_status = guard_config_status
-        self.__local_status = LocalStatus.LOCAL_UNSPECIFIED
-        self.__token_status = TokenStatus.TOKEN_UNSPECIFIED
-        self.__quota_status = QuotaStatus.QUOTA_UNSPECIFIED
+        self.__local_status = Local.LOCAL_NOT_EVAL
+        self.__token_status = Token.TOKEN_NOT_EVAL
+        self.__quota_status = Quota.QUOTA_NOT_EVAL
 
         self.__cached_leases: list[quota_pb2.TokenLease] = []
 
@@ -62,45 +59,50 @@ class Guard:
         """Run all guard checks and update guard statuses."""
 
         # Config state check
-        self.check_config()
+        if not self.check_config():
+            return
 
         # Local (Sentinel) check
-        self.check_local()
+        if not self.check_local():
+            return
 
         # Ingress token check
-        self.check_token(tokens)
+        if not self.check_token(tokens):
+            return
 
         # Quota check
         await self.check_quota()
 
-    def check_config(self):
+    def check_config(self) -> bool:
         """Check guard configuration."""
-        if self.__config_status is (
-            ConfigStatus.CONFIG_CACHED_OK or ConfigStatus.CONFIG_FETCHED_OK
+        if (
+            self.__config_status
+            is (Config.CONFIG_CACHED_OK or Config.CONFIG_FETCHED_OK)
+            and self.__guard_config is not None
         ):
-            return
+            return True
+        else:
+            return False
 
-        # TODO: add error handling
-        self.__config_status = ConfigStatus.CONFIG_NOT_FOUND
+    def check_local(self) -> bool:
+        """Local check is not currently supported by this SDK."""
+        self.__local_status = Local.LOCAL_NOT_SUPPORTED
+        return True
 
-    def check_local(self):
-        """Check using Sentinel."""
-        self.__local_status = LocalStatus.LOCAL_NOT_SUPPORTED
-
-    def check_token(self, tokens: Optional[Iterable[str]] = None) -> int:
+    def check_token(self, tokens: Optional[Iterable[str]] = None) -> bool:
         """Validate using the ingress token if configured to do so."""
 
         if not self.__guard_config.validate_ingress_tokens:
-            self.__token_status = TokenStatus.TOKEN_EVAL_DISABLED
-            return self.__token_status
+            self.__token_status = Token.TOKEN_EVAL_DISABLED
+            return True
 
         raise NotImplementedError
 
-    async def check_quota(self) -> int:
+    async def check_quota(self) -> bool:
         """Quota check using token leases."""
 
         if not self.__guard_config.check_quota:
-            self.__quota_status = QuotaStatus.QUOTA_EVAL_DISABLED
+            self.__quota_status = Quota.QUOTA_EVAL_DISABLED
             return self.__quota_status
 
         # TODO: Check baggage for stz-feat and stz-boost
@@ -124,8 +126,9 @@ class Guard:
                 request=token_lease_request,
                 metadata=self.stanza_config.metadata,
             )
-        except Exception as exc:
-            raise hub_error(exc) from exc
+        except grpc.RpcError as rpc_error:
+            logging.debug(rpc_error.debug_error_string())
+            return False
 
         if token_lease_response.granted:
             if len(token_lease_response.leases) > 1:
@@ -133,11 +136,11 @@ class Guard:
                 logging.debug("Extra leases: %s", len(token_lease_response.leases) - 1)
 
             self.__quota_token = token_lease_response.leases[0].token
-            self.__quota_status = QuotaStatus.QUOTA_GRANTED
+            self.__quota_status = Quota.QUOTA_GRANTED
+            return True
         else:
-            self.__quota_status = QuotaStatus.QUOTA_BLOCKED
-
-        return self.__quota_status
+            self.__quota_status = Quota.QUOTA_BLOCKED
+            return False
 
     def error(self) -> str:
         """If there was an error, return the message as a string."""
@@ -152,9 +155,9 @@ class Guard:
 
         # Allow if all of the following checks have succeeded.
         if (
-            self.__local_status != LocalStatus.LOCAL_BLOCKED
-            and self.__quota_status != QuotaStatus.QUOTA_BLOCKED
-            and self.__token_status != TokenStatus.TOKEN_NOT_VALID
+            self.__local_status != Local.LOCAL_BLOCKED
+            and self.__quota_status != Quota.QUOTA_BLOCKED
+            and self.__token_status != Token.TOKEN_NOT_VALID
         ):
             return True
 
@@ -168,13 +171,13 @@ class Guard:
 
     def block_message(self) -> str:
         """Returns the reason for the block as a human readable string."""
-        if self.__local_status is LocalStatus.LOCAL_BLOCKED:
+        if self.__local_status is Local.LOCAL_BLOCKED:
             return ""
 
-        if self.__token_status is TokenStatus.TOKEN_NOT_VALID:
+        if self.__token_status is Token.TOKEN_NOT_VALID:
             return "Invalid or expired X-Stanza-Token."
 
-        if self.__quota_status is QuotaStatus.QUOTA_BLOCKED:
+        if self.__quota_status is Quota.QUOTA_BLOCKED:
             return "Stanza quota exhausted. Please try again later."
 
         return ""
@@ -182,14 +185,14 @@ class Guard:
     def block_reason(self) -> str:
         """Returns the reason for the block as an enum."""
 
-        if self.__local_status is LocalStatus.LOCAL_BLOCKED:
-            return str(LocalStatus.LOCAL_BLOCKED)
+        if self.__local_status is Local.LOCAL_BLOCKED:
+            return Local.LOCAL_BLOCKED.name
 
-        if self.__token_status is TokenStatus.TOKEN_NOT_VALID:
-            return str(TokenStatus.TOKEN_NOT_VALID)
+        if self.__token_status is Token.TOKEN_NOT_VALID:
+            return Token.TOKEN_NOT_VALID.name
 
-        if self.__quota_status is QuotaStatus.QUOTA_BLOCKED:
-            return str(QuotaStatus.QUOTA_BLOCKED)
+        if self.__quota_status is Quota.QUOTA_BLOCKED:
+            return Quota.QUOTA_BLOCKED.name
 
         return ""
 
