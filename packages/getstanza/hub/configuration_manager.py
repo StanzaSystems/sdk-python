@@ -34,14 +34,18 @@ class StanzaHubConfigurationManager:
         self.__service_config_version: Optional[str] = None
         self.__guard_configs: MutableMapping[str, VersionedGuardConfig] = {}
 
-    def get_guard_config(self, guard_name: str) -> Optional[config_pb2.GuardConfig]:
+    async def get_guard_config(
+        self, guard_name: str
+    ) -> (Optional[config_pb2.GuardConfig], common_pb2.Config):
         """Retrieves the guard config for a specified guard."""
 
-        return (
-            self.__guard_configs[guard_name]["config"]
-            if guard_name in self.__guard_configs
-            else None
-        )
+        if guard_name in self.__guard_configs:
+            return (
+                self.__guard_configs[guard_name]["config"],
+                common_pb2.Config.CONFIG_CACHED_OK,
+            )
+
+        return await self.fetch_guard_config(guard_name)
 
     async def fetch_otel_bearer_token(self):
         """Fetch a new bearer token for use with the OTel collector."""
@@ -83,7 +87,9 @@ class StanzaHubConfigurationManager:
                 service_config_response.version,
             )
 
-    async def fetch_guard_config(self, guard_name: str) -> config_pb2.GuardConfig:
+    async def fetch_guard_config(
+        self, guard_name: str
+    ) -> (config_pb2.GuardConfig, common_pb2.Config):
         """Fetch guard configuration changes for a specific guard."""
 
         existing_guard_config = self.__guard_configs.get(guard_name)
@@ -102,9 +108,9 @@ class StanzaHubConfigurationManager:
                     ),
                 ),
             )
-        except grpc.RpcError as rpc_error:
+        except Exception as rpc_error:
             logging.error(rpc_error.debug_error_string())
-            return
+            return None, common_pb2.Config.CONFIG_FETCH_ERROR
 
         if guard_config_response.config_data_sent:
             self.__guard_configs[guard_name] = {
@@ -117,8 +123,12 @@ class StanzaHubConfigurationManager:
                 last_version_seen,
                 guard_config_response.version,
             )
-
-        return self.__guard_configs[guard_name]["config"]
+            return (
+                self.__guard_configs[guard_name]["config"],
+                common_pb2.Config.CONFIG_FETCHED_OK,
+            )
+        else:
+            return None, common_pb2.Config.CONFIG_FETCH_ERROR
 
     async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""

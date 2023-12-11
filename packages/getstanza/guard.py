@@ -1,10 +1,22 @@
 import logging
+from enum import Enum
 from typing import Iterable, Optional
 
-from getstanza.common import GuardedStatus, LocalStatus, QuotaStatus, TokenStatus
 from getstanza.configuration import StanzaConfiguration
 from getstanza.errors.hub import hub_error
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
+from stanza.hub.v1.common_pb2 import Config as ConfigStatus
+from stanza.hub.v1.common_pb2 import Local as LocalStatus
+from stanza.hub.v1.common_pb2 import Quota as QuotaStatus
+from stanza.hub.v1.common_pb2 import Token as TokenStatus
+
+
+class GuardedStatus(Enum):
+    """Indicate success or failure of the guarded code block"""
+
+    GUARDED_UNKNOWN = 0
+    GUARDED_SUCCESS = 1
+    GUARDED_FAILURE = 2
 
 
 class Guard:
@@ -18,6 +30,7 @@ class Guard:
         quota_service: quota_pb2_grpc.QuotaServiceStub,
         stanza_config: StanzaConfiguration,
         guard_config: config_pb2.GuardConfig,
+        guard_config_status: ConfigStatus,
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
@@ -25,7 +38,6 @@ class Guard:
         tags=None,
     ):
         self.stanza_config = stanza_config
-        self.guard_config = guard_config
         self.guard_name = guard_name
         self.feature_name = feature_name
         self.priority_boost = priority_boost
@@ -35,12 +47,14 @@ class Guard:
         self.success = GuardedStatus.GUARDED_SUCCESS
         self.failure = GuardedStatus.GUARDED_FAILURE
 
+        self.__guard_config = guard_config
         self.__quota_service = quota_service
         self.__quota_token: Optional[str] = None
 
+        self.__config_status = guard_config_status
         self.__local_status = LocalStatus.LOCAL_UNSPECIFIED
-        self.__quota_status = QuotaStatus.QUOTA_UNSPECIFIED
         self.__token_status = TokenStatus.TOKEN_UNSPECIFIED
+        self.__quota_status = QuotaStatus.QUOTA_UNSPECIFIED
 
         self.__cached_leases: list[quota_pb2.TokenLease] = []
 
@@ -48,7 +62,7 @@ class Guard:
         """Run all guard checks and update guard statuses."""
 
         # Config state check
-        # TODO
+        self.check_config()
 
         # Local (Sentinel) check
         self.check_local()
@@ -59,6 +73,16 @@ class Guard:
         # Quota check
         await self.check_quota()
 
+    def check_config(self):
+        """Check guard configuration."""
+        if self.__config_status is (
+            ConfigStatus.CONFIG_CACHED_OK or ConfigStatus.CONFIG_FETCHED_OK
+        ):
+            return
+
+        # TODO: add error handling
+        self.__config_status = ConfigStatus.CONFIG_NOT_FOUND
+
     def check_local(self):
         """Check using Sentinel."""
         self.__local_status = LocalStatus.LOCAL_NOT_SUPPORTED
@@ -66,7 +90,7 @@ class Guard:
     def check_token(self, tokens: Optional[Iterable[str]] = None) -> int:
         """Validate using the ingress token if configured to do so."""
 
-        if not self.guard_config.validate_ingress_tokens:
+        if not self.__guard_config.validate_ingress_tokens:
             self.__token_status = TokenStatus.TOKEN_EVAL_DISABLED
             return self.__token_status
 
@@ -75,7 +99,7 @@ class Guard:
     async def check_quota(self) -> int:
         """Quota check using token leases."""
 
-        if not self.guard_config.check_quota:
+        if not self.__guard_config.check_quota:
             self.__quota_status = QuotaStatus.QUOTA_EVAL_DISABLED
             return self.__quota_status
 
@@ -123,7 +147,7 @@ class Guard:
         """Check if the Guard is currently allowing traffic."""
 
         # Always allow traffic when 'report only' is set.
-        if self.guard_config and self.guard_config.report_only:
+        if self.__guard_config and self.__guard_config.report_only:
             return True
 
         # Allow if all of the following checks have succeeded.
