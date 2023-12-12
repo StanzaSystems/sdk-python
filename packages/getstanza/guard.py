@@ -224,7 +224,7 @@ class Guard:
         return ""
 
     def block_reason(self) -> str:
-        """Returns the reason for the block as an enum."""
+        """Returns the reason for the block as a string."""
 
         if self.__local_status is Local.LOCAL_BLOCKED:
             return Local.Name(self.__local_status)
