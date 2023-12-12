@@ -79,7 +79,7 @@ class Guard:
             await self.__check_quota()
 
         finally:
-            if self.__error_message is None:
+            if not self.__error_message:
                 if self.allowed():
                     self.__allowed()
                 else:
