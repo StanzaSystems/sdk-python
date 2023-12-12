@@ -227,13 +227,13 @@ class Guard:
         """Returns the reason for the block as an enum."""
 
         if self.__local_status is Local.LOCAL_BLOCKED:
-            return Local.LOCAL_BLOCKED.name
+            return Local.Name(self.__local_status)
 
         if self.__token_status is Token.TOKEN_NOT_VALID:
-            return Token.TOKEN_NOT_VALID.name
+            return Token.Name(self.__token_status)
 
         if self.__quota_status is Quota.QUOTA_BLOCKED:
-            return Quota.QUOTA_BLOCKED.name
+            return Quota.Name(self.__quota_status)
 
         return ""
 
