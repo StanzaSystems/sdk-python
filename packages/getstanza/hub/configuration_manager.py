@@ -128,7 +128,7 @@ class StanzaHubConfigurationManager:
                 common_pb2.Config.CONFIG_FETCHED_OK,
             )
         else:
-            return None, common_pb2.Config.CONFIG_FETCH_ERROR
+            return None, common_pb2.Config.CONFIG_FETCHED_OK
 
     async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""
