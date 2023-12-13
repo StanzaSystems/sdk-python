@@ -36,7 +36,7 @@ class StanzaHubConfigurationManager:
 
     async def get_guard_config(
         self, guard_name: str
-    ) -> (Tuple[Optional[config_pb2.GuardConfig], common_pb2.Config]):
+    ) -> (Optional[config_pb2.GuardConfig], common_pb2.Config):
         """Retrieves the guard config for a specified guard."""
 
         if guard_name in self.__guard_configs:
@@ -89,7 +89,7 @@ class StanzaHubConfigurationManager:
 
     async def fetch_guard_config(
         self, guard_name: str
-    ) -> (Tuple[Optional[config_pb2.GuardConfig], common_pb2.Config]):
+    ) -> (Optional[config_pb2.GuardConfig], common_pb2.Config):
         """Fetch guard configuration changes for a specific guard."""
 
         existing_guard_config = self.__guard_configs.get(guard_name)
