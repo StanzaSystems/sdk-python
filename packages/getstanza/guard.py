@@ -28,7 +28,7 @@ class Guard:
         quota_service: quota_pb2_grpc.QuotaServiceStub,
         stanza_config: StanzaConfiguration,
         guard_config: config_pb2.GuardConfig,
-        guard_config_status: Config,
+        guard_config_status: int,
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
@@ -112,7 +112,7 @@ class Guard:
 
     def __check_config(self) -> bool:
         """Check guard configuration."""
-        if self.__guard_config is not None:
+        if self.__guard_config is not config_pb2.GuardConfig():
             return True
         else:
             return self.__failopen(Config.Name(self.__config_status))

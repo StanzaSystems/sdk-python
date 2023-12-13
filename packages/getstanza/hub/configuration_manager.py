@@ -36,7 +36,7 @@ class StanzaHubConfigurationManager:
 
     async def get_guard_config(
         self, guard_name: str
-    ) -> (Tuple[Optional[config_pb2.GuardConfig], int]):
+    ) -> (Tuple[config_pb2.GuardConfig, int]):
         """Retrieves the guard config for a specified guard."""
 
         if guard_name in self.__guard_configs:
@@ -89,7 +89,7 @@ class StanzaHubConfigurationManager:
 
     async def fetch_guard_config(
         self, guard_name: str
-    ) -> (Tuple[Optional[config_pb2.GuardConfig], int]):
+    ) -> (Tuple[config_pb2.GuardConfig, int]):
         """Fetch guard configuration changes for a specific guard."""
 
         existing_guard_config = self.__guard_configs.get(guard_name)
@@ -112,7 +112,7 @@ class StanzaHubConfigurationManager:
             )
         except grpc.RpcError as rpc_error:
             logging.debug(rpc_error.debug_error_string())  # type: ignore
-            return None, common_pb2.Config.CONFIG_FETCH_ERROR
+            return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCH_ERROR
 
         if guard_config_response.config_data_sent:
             self.__guard_configs[guard_name] = {
@@ -130,7 +130,7 @@ class StanzaHubConfigurationManager:
                 common_pb2.Config.CONFIG_FETCHED_OK,
             )
         else:
-            return None, common_pb2.Config.CONFIG_FETCHED_OK
+            return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCHED_OK
 
     async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""
