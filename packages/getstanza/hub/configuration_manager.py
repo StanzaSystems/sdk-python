@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import MutableMapping, Optional, TypedDict
+from typing import MutableMapping, Optional, Tuple, TypedDict
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
@@ -36,7 +36,7 @@ class StanzaHubConfigurationManager:
 
     async def get_guard_config(
         self, guard_name: str
-    ) -> (Optional[config_pb2.GuardConfig], common_pb2.Config):
+    ) -> (Tuple[Optional[config_pb2.GuardConfig], common_pb2.Config]):
         """Retrieves the guard config for a specified guard."""
 
         if guard_name in self.__guard_configs:
@@ -55,7 +55,7 @@ class StanzaHubConfigurationManager:
             )
             self.__otel_bearer_token = bearer_token_response.bearer_token
         except grpc.RpcError as rpc_error:
-            logging.debug(rpc_error.debug_error_string())
+            logging.debug(rpc_error.debug_error_string())  # type: ignore
             return
 
     async def fetch_service_config(self):
@@ -75,7 +75,7 @@ class StanzaHubConfigurationManager:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            logging.debug(rpc_error.debug_error_string())
+            logging.debug(rpc_error.debug_error_string())  # type: ignore
             return
 
         if service_config_response.config_data_sent:
@@ -89,11 +89,13 @@ class StanzaHubConfigurationManager:
 
     async def fetch_guard_config(
         self, guard_name: str
-    ) -> (config_pb2.GuardConfig, common_pb2.Config):
+    ) -> (Tuple[Optional[config_pb2.GuardConfig], common_pb2.Config]):
         """Fetch guard configuration changes for a specific guard."""
 
         existing_guard_config = self.__guard_configs.get(guard_name)
-        last_version_seen = existing_guard_config and existing_guard_config["version"]
+        last_version_seen = None
+        if existing_guard_config:
+            last_version_seen = existing_guard_config["version"]
 
         try:
             guard_config_response = self.__config_service.GetGuardConfig(
@@ -109,7 +111,7 @@ class StanzaHubConfigurationManager:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            logging.debug(rpc_error.debug_error_string())
+            logging.debug(rpc_error.debug_error_string())  # type: ignore
             return None, common_pb2.Config.CONFIG_FETCH_ERROR
 
         if guard_config_response.config_data_sent:

@@ -129,14 +129,29 @@ class Guard:
             self.__token_status = Token.TOKEN_EVAL_DISABLED
             return True
 
-        validate_token_request = quota_pb2.ValidateTokenRequest(tokens=tokens)
+        if not tokens:
+            self.__token_status = Token.TOKEN_NOT_VALID
+            return False
+
+        tokens_info: Iterable[quota_pb2.TokenInfo] = []
+        for token in tokens:
+            tokens_info.append(
+                quota_pb2.TokenInfo(
+                    token=token,
+                    guard=common_pb2.GuardSelector(
+                        name=self.guard_name, environment=self.stanza_config.environment
+                    ),
+                )
+            )
+
+        validate_token_request = quota_pb2.ValidateTokenRequest(tokens=tokens_info)
         try:
             validate_token_response = self.__quota_service.ValidateToken(
                 request=validate_token_request,
                 metadata=self.stanza_config.metadata,
             )
         except grpc.RpcError as rpc_error:
-            return self.__failopen(rpc_error.debug_error_string())
+            return self.__failopen(rpc_error.debug_error_string())  # type: ignore
 
         return validate_token_response.valid
 
@@ -145,7 +160,7 @@ class Guard:
 
         if not self.__guard_config.check_quota:
             self.__quota_status = Quota.QUOTA_EVAL_DISABLED
-            return self.__quota_status
+            return True
 
         # TODO: Check baggage for stz-feat and stz-boost
 
@@ -169,7 +184,7 @@ class Guard:
                 metadata=self.stanza_config.metadata,
             )
         except grpc.RpcError as rpc_error:
-            return self.__failopen(rpc_error.debug_error_string())
+            return self.__failopen(rpc_error.debug_error_string())  # type: ignore
 
         if token_lease_response.granted:
             if len(token_lease_response.leases) > 1:
@@ -183,7 +198,7 @@ class Guard:
             self.__quota_status = Quota.QUOTA_BLOCKED
             return False
 
-    def error(self) -> str:
+    def error(self) -> Optional[str]:
         """If there was an error, return the message as a string."""
         return self.__error_message
 
@@ -210,10 +225,10 @@ class Guard:
 
         return not self.allowed()
 
-    def block_message(self) -> str:
+    def block_message(self) -> Optional[str]:
         """Returns the reason for the block as a human readable string."""
         if self.__local_status is Local.LOCAL_BLOCKED:
-            return ""
+            return "Local resource exhausted. Please try again later."
 
         if self.__token_status is Token.TOKEN_NOT_VALID:
             return "Invalid or expired X-Stanza-Token."
@@ -221,9 +236,9 @@ class Guard:
         if self.__quota_status is Quota.QUOTA_BLOCKED:
             return "Stanza quota exhausted. Please try again later."
 
-        return ""
+        return None
 
-    def block_reason(self) -> str:
+    def block_reason(self) -> Optional[str]:
         """Returns the reason for the block as a string."""
 
         if self.__local_status is Local.LOCAL_BLOCKED:
@@ -235,9 +250,9 @@ class Guard:
         if self.__quota_status is Quota.QUOTA_BLOCKED:
             return Quota.Name(self.__quota_status)
 
-        return ""
+        return None
 
-    def quota_token(self) -> str:
+    def quota_token(self) -> Optional[str]:
         """Returns the quota token for this request."""
         return self.__quota_token
 
