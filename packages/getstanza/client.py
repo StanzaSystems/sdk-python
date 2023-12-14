@@ -1,9 +1,11 @@
 import logging
-from typing import Optional
+import threading
+from typing import Optional, cast
 
 from getstanza.configuration import StanzaConfiguration
 from getstanza.guard import Guard
 from getstanza.hub import StanzaHub
+from typing_extensions import Self
 
 
 class StanzaClient:
@@ -12,24 +14,49 @@ class StanzaClient:
     service and guard configurations.
     """
 
+    __instance: Optional[Self] = None
+    __lock = threading.Lock()
+
+    @property
+    def config(self):
+        return self.__config
+
+    @property
+    def hub(self):
+        return self.__hub
+
+    @classmethod
+    def getInstance(cls) -> Self:
+        """Returns the global instance of the Stanza SDK client."""
+
+        if cls.__instance is None:
+            raise RuntimeError("The Stanza SDK has not yet been initialized")
+
+        return cast(Self, cls.__instance)
+
     def __init__(self, config: StanzaConfiguration):
+        """Initializes the Stanza SDK. This can only happen once."""
+
         logging.debug("Initializing Stanza")
 
-        self.config = config
-        self.__hub = StanzaHub(config)
+        if StanzaClient.__instance is None:
+            with StanzaClient.__lock:
+                if StanzaClient.__instance is None:
+                    self.__config = config
+                    self.__hub = StanzaHub(config)
+                    StanzaClient.__instance = self
 
-        # TODO: Add refetch logic for this whenever 'exp' happens.
-        # self.__hub.fetch_otel_bearer_token()
+                    self.__hub.start_poller()
 
-        # TODO: Initialize OTEL TextMapPropagator here
-        # otel.InitTextMapPropagator(otel.StanzaHeaders{})
+                    # TODO: Add refetch logic for this whenever 'exp' happens.
+                    # self.__hub.fetch_otel_bearer_token()
 
-        # TODO: Consider allowing this all to be setup on another thread so this
-        # works well with synchronous frameworks like Flask?
+                    # TODO: Initialize OTEL TextMapPropagator here
+                    # otel.InitTextMapPropagator(otel.StanzaHeaders{})
 
-        # TODO: Pass configuration and dependencies around using a context?
+                    return
 
-        self.__hub.start_poller()
+        raise RuntimeError("The Stanza SDK client has already been initialized")
 
     async def guard(
         self,
@@ -47,7 +74,7 @@ class StanzaClient:
 
         guard = Guard(
             self.__hub.quota_service,
-            self.config,
+            self.__config,
             guard_config,
             guard_config_status,
             guard_name,

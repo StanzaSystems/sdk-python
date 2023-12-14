@@ -22,8 +22,9 @@ class StanzaHubPoller:
     def start(self):
         """Begin polling with the configured interval."""
 
-        self.__polling = True
-        self.__schedule_poll()
+        if not self.__polling:
+            self.__polling = True
+            self.__schedule_poll()
 
     def stop(self):
         """Stop polling Hub for configuration changes."""

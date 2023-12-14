@@ -1,14 +1,14 @@
 import asyncio
 import datetime
 import logging
-import os
 import threading
 import time
 from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Iterable, MutableMapping, Optional, Sequence, cast
+from typing import Iterable, MutableMapping, Optional, cast
 
+import getstanza.client
 import grpc
 from getstanza.configuration import StanzaConfiguration
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
@@ -23,7 +23,7 @@ cached_leases: MutableMapping[tuple, list[quota_pb2.TokenLease]] = {}
 cached_leases_lock = threading.Lock()
 
 # Contains all leases that have been consumed, but not yet communicated to Hub.
-consumed_leases: defaultdict[tuple, list[quota_pb2.TokenLease]] = defaultdict(list)
+consumed_leases: defaultdict[str, list[quota_pb2.TokenLease]] = defaultdict(list)
 consumed_leases_lock = threading.Lock()
 
 # An asynchronous task that flushes consumed leases to Hub every ~200ms.
@@ -116,24 +116,17 @@ class Guard:
         """Returns the cache key needed to find cached leases for the guard."""
 
         return (
-            self.__stanza_config.hub_address,
-            self.__stanza_config.api_key,
-            self.__stanza_config.service_name,
-            self.__stanza_config.service_release,
-            self.__stanza_config.environment,
+            cast(str, self.__stanza_config.environment),
             self.__guard_name,
             self.__feature_name,
+            self.__priority_boost,
         )
 
     @property
     def __consumed_lease_key(self):
         """Returns the key needed to group consumed leases by env."""
 
-        return (
-            self.__stanza_config.hub_address,
-            self.__stanza_config.api_key,
-            self.__stanza_config.environment,
-        )
+        return cast(str, self.__stanza_config.environment)
 
     def __init__(
         self,
@@ -318,10 +311,12 @@ class Guard:
 
         try:
             logging.debug(
-                "Requesting a token lease with selector: (%s, %s, %s)",
+                "Requesting a token lease with selector: "
+                "(environment = %s, guard = %s, feature = %s, priority = %s)",
                 self.__stanza_config.environment,
                 self.__guard_name,
                 self.__feature_name,
+                self.__priority_boost,
             )
 
             token_lease_response = cast(
@@ -445,7 +440,7 @@ class Guard:
                 )
 
         with cached_leases_lock:
-            cached_leases[self.__cached_lease_key] = _leases
+            cached_leases[self.__cached_lease_key].extend(_leases)
 
     def __check_token_lease(self, lease: quota_pb2.TokenLease) -> bool:
         """Returns false if a token lease is expired or invalid."""
@@ -507,24 +502,10 @@ async def batch_token_consumer():
 
         tasks = []
 
-        for key, leases in seized_leases.items():
-            hub_address, api_key, environment = key
-
-            # TODO: Come up with a better way to handle calling gRPC when
-            # making calls in a global context.
-            grpc_channel = (
-                grpc.insecure_channel(hub_address)
-                if os.environ.get("STANZA_HUB_NO_TLS")
-                else grpc.secure_channel(hub_address, grpc.ssl_channel_credentials())
-            )
-            quota_service = quota_pb2_grpc.QuotaServiceStub(grpc_channel)
-            metadata = [("x-stanza-key", api_key)]
-
+        for environment, leases in seized_leases.items():
             tasks.append(
                 asyncio.ensure_future(
-                    set_token_lease_consumed(
-                        leases, environment, quota_service, metadata
-                    )
+                    set_token_lease_consumed(leases, environment)
                 )  # type: ignore
             )
 
@@ -567,10 +548,10 @@ def handle_batch_token_consumer(task: asyncio.Task):
 async def set_token_lease_consumed(
     leases: Iterable[quota_pb2.TokenLease],
     environment: str,
-    quota_service: quota_pb2_grpc.QuotaServiceStub,
-    metadata: Sequence[tuple[str, Any]],
 ):
     """Consume a set of token leases for a given environment."""
+
+    client = getstanza.client.StanzaClient.getInstance()
 
     set_token_lease_consumed_request = quota_pb2.SetTokenLeaseConsumedRequest(
         tokens=list(map(lambda lease: lease.token, leases)),
@@ -583,8 +564,7 @@ async def set_token_lease_consumed(
     )
 
     # TODO: We should set a timeout, right?
-
-    quota_service.SetTokenLeaseConsumed(
+    client.hub.quota_service.SetTokenLeaseConsumed(
         request=set_token_lease_consumed_request,
-        metadata=metadata,
+        metadata=client.config.metadata,
     )
