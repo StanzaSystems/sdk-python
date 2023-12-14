@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
-from typing import Any, Iterable, MutableMapping, Optional, cast
+from typing import Any, Iterable, MutableMapping, Optional, Sequence, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
@@ -568,7 +568,7 @@ async def set_token_lease_consumed(
     leases: Iterable[quota_pb2.TokenLease],
     environment: str,
     quota_service: quota_pb2_grpc.QuotaServiceStub,
-    metadata: list[tuple[str, Any]],
+    metadata: Sequence[tuple[str, Any]],
 ):
     """Consume a set of token leases for a given environment."""
 
