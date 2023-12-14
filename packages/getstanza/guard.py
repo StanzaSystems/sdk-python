@@ -525,7 +525,7 @@ async def batch_token_consumer():
                     set_token_lease_consumed(
                         leases, environment, quota_service, metadata
                     )
-                )
+                )  # type: ignore
             )
 
         if len(tasks) > 0:
