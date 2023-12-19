@@ -1,10 +1,17 @@
 import asyncio
 import logging
-from typing import MutableMapping, Optional, TypedDict
+from typing import MutableMapping, Optional, TypedDict, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
-from stanza.hub.v1 import auth_pb2_grpc, common_pb2, config_pb2, config_pb2_grpc
+from getstanza.otel import OpenTelemetry
+from stanza.hub.v1 import (
+    auth_pb2,
+    auth_pb2_grpc,
+    common_pb2,
+    config_pb2,
+    config_pb2_grpc,
+)
 
 VersionedGuardConfig = TypedDict(
     "VersionedGuardConfig",
@@ -17,6 +24,10 @@ VersionedGuardConfig = TypedDict(
 
 class StanzaHubConfigurationManager:
     """State manager for the active service configuration."""
+
+    @property
+    def service_config(self):
+        return self.__service_config
 
     def __init__(
         self,
@@ -47,17 +58,23 @@ class StanzaHubConfigurationManager:
 
         return await self.fetch_guard_config(guard_name)
 
-    async def fetch_otel_bearer_token(self):
+    async def fetch_otel_bearer_token(self) -> str:
         """Fetch a new bearer token for use with the OTel collector."""
 
         try:
-            bearer_token_response = self.__auth_service.GetBearerToken(
-                metadata=self.config.metadata
+            bearer_token_response = cast(
+                auth_pb2.GetBearerTokenResponse,
+                self.__auth_service.GetBearerToken(
+                    metadata=self.config.metadata,
+                    request=auth_pb2.GetBearerTokenRequest(
+                        environment=self.config.environment,
+                    ),
+                ),
             )
-            self.__otel_bearer_token = bearer_token_response.bearer_token
+            return bearer_token_response.bearer_token
         except grpc.RpcError as rpc_error:
             logging.debug(rpc_error.debug_error_string())  # type: ignore
-            return
+            return ""
 
     async def fetch_service_config(self):
         """Fetch service configuration changes."""
@@ -65,15 +82,18 @@ class StanzaHubConfigurationManager:
         last_version_seen = self.__service_config_version
 
         try:
-            service_config_response = self.__config_service.GetServiceConfig(
-                metadata=self.config.metadata,
-                request=config_pb2.GetServiceConfigRequest(
-                    client_id=self.config.client_id,
-                    version_seen=last_version_seen,
-                    service=common_pb2.ServiceSelector(
-                        name=self.config.service_name,
-                        release=self.config.service_release,
-                        environment=self.config.environment,
+            service_config_response = cast(
+                config_pb2.GetServiceConfigResponse,
+                self.__config_service.GetServiceConfig(
+                    metadata=self.config.metadata,
+                    request=config_pb2.GetServiceConfigRequest(
+                        client_id=self.config.client_id,
+                        version_seen=last_version_seen,
+                        service=common_pb2.ServiceSelector(
+                            name=self.config.service_name,
+                            release=self.config.service_release,
+                            environment=self.config.environment,
+                        ),
                     ),
                 ),
             )
@@ -90,6 +110,16 @@ class StanzaHubConfigurationManager:
                 service_config_response.version,
             )
 
+            # TODO: reconnect OTEL if metric or trace collector_url has changed
+            if not self.config.otel:
+                otel = OpenTelemetry(
+                    bearer_token=await self.fetch_otel_bearer_token(),
+                    metric_collector_url=service_config_response.config.metric_config.collector_url,
+                    trace_collector_url=service_config_response.config.trace_config.collector_url,
+                )
+                if otel.new_meter() and otel.new_tracer():
+                    self.config.otel = otel
+
     async def fetch_guard_config(
         self, guard_name: str
     ) -> (tuple[config_pb2.GuardConfig, common_pb2.Config]):
@@ -101,15 +131,18 @@ class StanzaHubConfigurationManager:
             last_version_seen = existing_guard_config["version"]
 
         try:
-            guard_config_response = self.__config_service.GetGuardConfig(
-                metadata=self.config.metadata,
-                request=config_pb2.GetGuardConfigRequest(
-                    version_seen=last_version_seen,
-                    selector=common_pb2.GuardServiceSelector(
-                        guard_name=guard_name,
-                        service_name=self.config.service_name,
-                        service_release=self.config.service_release,
-                        environment=self.config.environment,
+            guard_config_response = cast(
+                config_pb2.GetGuardConfigResponse,
+                self.__config_service.GetGuardConfig(
+                    metadata=self.config.metadata,
+                    request=config_pb2.GetGuardConfigRequest(
+                        version_seen=last_version_seen,
+                        selector=common_pb2.GuardServiceSelector(
+                            guard_name=guard_name,
+                            service_name=self.config.service_name,
+                            service_release=self.config.service_release,
+                            environment=self.config.environment,
+                        ),
                     ),
                 ),
             )
