@@ -192,7 +192,7 @@ class Guard:
                 batch_token_consumer_task.add_done_callback(handle_batch_token_consumer)
 
     def __repr__(self) -> str:
-        """Returns all of the current status state of the guild."""
+        """Returns all of the current status state of the guard."""
 
         return (
             "guard={}, config_state={}, local_reason={}, token_reason={}, quota_reason={}".format(
