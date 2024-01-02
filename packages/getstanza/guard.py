@@ -10,6 +10,9 @@ from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
+
+# from opentelemetry.metrics import Meter
+from getstanza.otel import OpenTelemetry
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
 from stanza.hub.v1.common_pb2 import Config, Local, Quota, Token
 
@@ -163,6 +166,7 @@ class Guard:
         guard_config: Optional[config_pb2.GuardConfig],
         guard_config_status: Config,
         guard_name: str,
+        otel: Optional[OpenTelemetry] = None,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
@@ -174,6 +178,7 @@ class Guard:
         self.__stanza_config = stanza_config
         self.__guard_config = guard_config
         self.__guard_name = guard_name
+        self.__otel = otel
         self.__feature_name = feature_name
         self.__priority_boost = 0 if priority_boost is None else priority_boost
         self.__default_weight = 0 if default_weight is None else default_weight
@@ -230,7 +235,7 @@ class Guard:
                 self.__local_status = self.__check_local()
             except Exception:
                 logging.exception(
-                    "Received unexpected exception while checking Sentinel"
+                    "Received unexpected exception while checking local rules"
                 )
                 self.__local_status = Local.LOCAL_ERROR
 
@@ -254,7 +259,7 @@ class Guard:
                 self.__quota_status, self.__quota_token = self.__check_quota()
             except Exception:
                 logging.exception(
-                    "Received unexpected exception while checking Sentinel"
+                    "Received unexpected exception while checking quota"
                 )
                 self.__quota_status = Quota.QUOTA_ERROR
 
@@ -368,7 +373,7 @@ class Guard:
             )
         except grpc.RpcError as rpc_error:
             self.__failopen(rpc_error.debug_error_string())  # type: ignore
-            return Quota.QUOTA_BLOCKED, None
+            return Quota.QUOTA_ERROR, None
 
         # Immediately consume a lease upon being granted token leases, and
         # cache the rest for later use; otherwise set quota status to BLOCKED.
@@ -435,20 +440,26 @@ class Guard:
     def __allowed(self):
         """Log an allowed event to OTEL."""
 
-        # TODO: OTEL meter (AllowedCount) and trace span
+        if self.__otel:
+            self.__otel.meter.AllowedCount.add(1)  # TODO: Add OTEL Attributes
+            # TODO: Add OTEL trace event to span
         self.__start = datetime.datetime.now()
         self.emit_event(GuardEvent.ALLOWED, "Stanza allowed")
 
     def __blocked(self):
         """Log a blocked event to OTEL."""
 
-        # TODO: OTEL meter (BlockedCount) and trace span
+        if self.__otel:
+            self.__otel.meter.BlockedCount.add(1)  # TODO: Add OTEL Attributes
+            # TODO: Add OTEL trace event to span
         self.emit_event(GuardEvent.BLOCKED, "Stanza blocked")
 
     def __failopen(self, error_message: str):
         """Log a failopen event to OTEL."""
 
-        # TODO: OTEL meter (FailOpenCount) and trace span
+        if self.__otel:
+            self.__otel.meter.FailOpenCount.add(1)  # TODO: Add OTEL Attributes
+            # TODO: Add OTEL trace event to span
         self.__error_message = error_message
         self.emit_event(GuardEvent.FAILOPEN, f"Stanza failed open, {error_message}")
 

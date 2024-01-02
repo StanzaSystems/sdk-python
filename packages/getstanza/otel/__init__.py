@@ -4,9 +4,8 @@ from typing import cast
 
 # from getstanza.configuration import StanzaConfiguration
 import getstanza.client
-from getstanza.otel.meter import StanzaMeterProvider
+from getstanza.otel.meter import StanzaMeter, StanzaMeterProvider
 from getstanza.otel.tracer import StanzaTracerProvider
-from opentelemetry.metrics import Meter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import Tracer
 
@@ -18,7 +17,7 @@ class OpenTelemetry:
     """Implements OTEL metrics and traces."""
 
     @property
-    def meter(self) -> Meter:
+    def meter(self) -> StanzaMeter:
         return self.__meter
 
     @property

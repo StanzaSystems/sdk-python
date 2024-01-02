@@ -16,6 +16,45 @@ METRIC_EXPORT_INTERVAL: float = 10_000  # 10,000 milliseconds = 10 seconds
 METRIC_EXPORT_TIMEOUT: float = 30_000  # 30,000 milliseconds = 30 seconds
 
 
+class StanzaMeter:
+    def __init__(self, meter: Meter):
+        self.AllowedCount = meter.create_counter(
+            name="stanza.guard.allowed",
+            unit="1",
+            description="measures the number of executions that were allowed",
+        )
+        self.AllowedSuccessCount = meter.create_counter(
+            name="stanza.guard.allowed.success",
+            unit="1",
+            description="measures the number of executions that succeeded",
+        )
+        self.AllowedFailureCount = meter.create_counter(
+            name="stanza.guard.allowed.failure",
+            unit="1",
+            description="measures the number of executions that failed",
+        )
+        self.AllowedUnknownCount = meter.create_counter(
+            name="stanza.guard.allowed.unknown",
+            unit="1",
+            description="measures the number of executions where the success (or failure) was unknown",
+        )
+        self.AllowedDuration = meter.create_histogram(
+            name="stanza.guard.allowed.duration",
+            unit="ms",
+            description="measures the total executions time of guarded requests",
+        )
+        self.BlockedCount = meter.create_counter(
+            name="stanza.guard.blocked",
+            unit="1",
+            description="measures the number of executions that were backpressured",
+        )
+        self.FailOpenCount = meter.create_counter(
+            name="stanza.guard.failopen",
+            unit="1",
+            description="measures the number of executions that failed open",
+        )
+
+
 class StanzaMeterProvider:
     @property
     def provider(self):
@@ -61,7 +100,7 @@ class StanzaMeterProvider:
 
     def get_meter(
         self, name: str, version: str, schema_url: Optional[str] = None
-    ) -> Meter:
-        return self.__provider.get_meter(
-            name=name, version=version, schema_url=schema_url
+    ) -> StanzaMeter:
+        return StanzaMeter(
+            self.__provider.get_meter(name=name, version=version, schema_url=schema_url)
         )
