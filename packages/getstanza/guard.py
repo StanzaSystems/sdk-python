@@ -4,11 +4,10 @@ import logging
 import threading
 import time
 from collections import defaultdict
-from datetime import timedelta
+from datetime import timedelta, timezone
 from enum import Enum
-from typing import Iterable, MutableMapping, Optional, cast
+from typing import Iterable, Optional, cast
 
-import getstanza.client
 import grpc
 from getstanza.configuration import StanzaConfiguration
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
@@ -19,7 +18,9 @@ from stanza.hub.v1.common_pb2 import Config, Local, Quota, Token
 BATCH_TOKEN_CONSUME_INTERVAL = 0.2
 
 # Contains all cached leases returned by Hub that haven't been used yet.
-cached_leases: MutableMapping[tuple, list[quota_pb2.TokenLease]] = {}
+cached_leases: defaultdict[
+    tuple, list[tuple[datetime.datetime, quota_pb2.TokenLease]]  # Expiration and lease
+] = defaultdict(list)
 cached_leases_lock = threading.Lock()
 
 # Contains all leases that have been consumed, but not yet communicated to Hub.
@@ -32,11 +33,27 @@ batch_token_consumer_task_lock = threading.Lock()
 
 
 class GuardedStatus(Enum):
-    """Indicate success or failure of the guarded code block"""
+    """Indicate success or failure of the guarded code block."""
 
     GUARDED_UNKNOWN = 0
     GUARDED_SUCCESS = 1
     GUARDED_FAILURE = 2
+
+
+class GuardEvent(Enum):
+    """Possible event types a guard may emit."""
+
+    ALLOWED = 0
+    BLOCKED = 1
+    FAILOPEN = 2
+
+
+class TokenLeaseStatus(Enum):
+    """Represents the possible statuses of a cached token lease."""
+
+    TOKEN_LEASE_VALID = 0
+    TOKEN_LEASE_EXPIRED = 1
+    TOKEN_LEASE_WRONG_PRIORITY = 2
 
 
 class Guard:
@@ -52,6 +69,26 @@ class Guard:
     @property
     def failure(self):
         return GuardedStatus.GUARDED_FAILURE
+
+    @property
+    def local_status(self):
+        return self.__local_status
+
+    @property
+    def token_status(self):
+        return self.__token_status
+
+    @property
+    def quota_status(self):
+        return self.__quota_status
+
+    @property
+    def quota_token(self) -> Optional[str]:
+        return self.__quota_token
+
+    @property
+    def guard_config(self) -> config_pb2.GuardConfig:
+        return self.__guard_config
 
     @property
     def error(self) -> Optional[str]:
@@ -89,18 +126,6 @@ class Guard:
 
         return None
 
-    @property
-    def quota_token(self) -> Optional[str]:
-        """Returns the quota token for this request."""
-
-        return self.__quota_token
-
-    @property
-    def guard_config(self) -> config_pb2.GuardConfig:
-        """The active guard configuration."""
-
-        return self.__guard_config
-
     @guard_config.setter
     def guard_config(self, value):
         if self.__guard_config is not None:
@@ -119,7 +144,6 @@ class Guard:
             cast(str, self.__stanza_config.environment),
             self.__guard_name,
             self.__feature_name,
-            self.__priority_boost,
         )
 
     @property
@@ -147,8 +171,8 @@ class Guard:
         self.__guard_config = guard_config
         self.__guard_name = guard_name
         self.__feature_name = feature_name
-        self.__priority_boost = priority_boost
-        self.__default_weight = default_weight
+        self.__priority_boost = 0 if priority_boost is None else priority_boost
+        self.__default_weight = 0 if default_weight is None else default_weight
         self.__tags = tags
 
         self.__quota_token: Optional[str] = None
@@ -167,6 +191,19 @@ class Guard:
                 batch_token_consumer_task = loop.create_task(batch_token_consumer())
                 batch_token_consumer_task.add_done_callback(handle_batch_token_consumer)
 
+    def __repr__(self) -> str:
+        """Returns all of the current status state of the guard."""
+
+        return (
+            "guard={}, config_state={}, local_reason={}, token_reason={}, quota_reason={}".format(
+                self.__guard_name,
+                Config.Name(self.__config_status),
+                Local.Name(self.__local_status),
+                Token.Name(self.__token_status),
+                Quota.Name(self.__quota_status),
+            )
+        )
+
     async def run(self, tokens: Optional[Iterable[str]] = None) -> bool:
         """Run all guard checks and update guard statuses."""
 
@@ -175,9 +212,7 @@ class Guard:
             try:
                 self.__config_status = self.__check_config()
             except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking guard config"
-                )
+                logging.exception("Received unexpected exception while checking guard config")
                 self.__config_status = Config.CONFIG_NOT_FOUND
 
             if (
@@ -190,9 +225,7 @@ class Guard:
             try:
                 self.__local_status = self.__check_local()
             except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking Sentinel"
-                )
+                logging.exception("Received unexpected exception while checking Sentinel")
                 self.__local_status = Local.LOCAL_ERROR
 
             if self.__local_status == Local.LOCAL_BLOCKED:
@@ -202,9 +235,7 @@ class Guard:
             try:
                 self.__token_status = self.__check_token(tokens)
             except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking ingress tokens"
-                )
+                logging.exception("Received unexpected exception while checking ingress tokens")
                 self.__token_status = Token.TOKEN_VALIDATION_ERROR
 
             if self.__local_status == Token.TOKEN_NOT_VALID:
@@ -214,9 +245,7 @@ class Guard:
             try:
                 self.__quota_status, self.__quota_token = self.__check_quota()
             except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking Sentinel"
-                )
+                logging.exception("Received unexpected exception while checking Sentinel")
                 self.__quota_status = Quota.QUOTA_ERROR
 
             return self.allowed()
@@ -231,9 +260,7 @@ class Guard:
         """Check guard configuration."""
 
         return (
-            Config.CONFIG_CACHED_OK
-            if self.__guard_config is not None
-            else Config.CONFIG_NOT_FOUND
+            Config.CONFIG_CACHED_OK if self.__guard_config is not None else Config.CONFIG_NOT_FOUND
         )
 
     def __check_local(self) -> Local:
@@ -277,11 +304,7 @@ class Guard:
             self.__failopen(rpc_error.debug_error_string())  # type: ignore
             return Token.TOKEN_VALIDATION_ERROR
 
-        return (
-            Token.TOKEN_VALID
-            if validate_token_response.valid
-            else Token.TOKEN_NOT_VALID
-        )
+        return Token.TOKEN_VALID if validate_token_response.valid else Token.TOKEN_NOT_VALID
 
     def __check_quota(self) -> tuple[Quota, Optional[str]]:
         """Quota check using token leases."""
@@ -312,11 +335,12 @@ class Guard:
         try:
             logging.debug(
                 "Requesting a token lease with selector: "
-                "(environment = %s, guard = %s, feature = %s, priority = %s)",
+                "(environment = %s, guard = %s, feature = %s, priority boost = %s, default weight = %s)",
                 self.__stanza_config.environment,
                 self.__guard_name,
                 self.__feature_name,
                 self.__priority_boost,
+                self.__default_weight,
             )
 
             token_lease_response = cast(
@@ -379,37 +403,30 @@ class Guard:
 
         # TODO: Collect success / failure metrics here.
 
-    def __log(self) -> str:
-        """Returns all of the current status state of the guild."""
+    def emit_event(self, guard_event: GuardEvent, message: str):
+        """Log any type of guard event to OTEL."""
 
-        return "guard={}, config_state={}, local_reason={}, token_reason={}, quota_reason={}".format(
-            self.__guard_name,
-            Config.Name(self.__config_status),
-            Local.Name(self.__local_status),
-            Token.Name(self.__token_status),
-            Quota.Name(self.__quota_status),
-        )
+        logging.debug(f"{message}, %s", repr(self))
 
     def __allowed(self):
         """Log an allowed event to OTEL."""
 
         # TODO: OTEL meter (AllowedCount) and trace span
-        logging.debug("Stanza allowed, %s", self.__log())
         self.__start = datetime.datetime.now()
+        self.emit_event(GuardEvent.ALLOWED, "Stanza allowed")
 
     def __blocked(self):
         """Log a blocked event to OTEL."""
 
         # TODO: OTEL meter (BlockedCount) and trace span
-        logging.debug("Stanza blocked, %s", self.__log())
+        self.emit_event(GuardEvent.BLOCKED, "Stanza blocked")
 
     def __failopen(self, error_message: str):
         """Log a failopen event to OTEL."""
 
         # TODO: OTEL meter (FailOpenCount) and trace span
         self.__error_message = error_message
-        logging.debug(error_message)
-        logging.debug("Stanza failed open, %s", self.__log())
+        self.emit_event(GuardEvent.FAILOPEN, f"Stanza failed open, {error_message}")
 
     def __consume_cached_token_lease(self) -> Optional[quota_pb2.TokenLease]:
         """Scans cached leases and finds the first valid and unexpired lease."""
@@ -418,55 +435,79 @@ class Guard:
             if self.__cached_lease_key not in cached_leases:
                 return None
 
+            num_discarded_leases = 0
+
             # Scan through leases until a valid and unexpired one is found. Any
             # invalid leases found during this process are discarded.
-            while len(cached_leases[self.__cached_lease_key]) > 0:
-                cached_lease = cached_leases[self.__cached_lease_key].pop(0)
-                if self.__check_token_lease(cached_lease):
-                    self.__consume_token_lease(cached_lease)
-                    return cached_lease
+            for i, cached_lease in enumerate(cached_leases[self.__cached_lease_key][:]):
+                expiration, lease = cached_lease
+                token_status = self.__check_token_lease(lease, expiration)
+
+                if token_status == TokenLeaseStatus.TOKEN_LEASE_VALID:
+                    cached_leases[self.__cached_lease_key].pop(i)
+                    self.__consume_token_lease(lease)
+                    return lease
+                elif token_status == TokenLeaseStatus.TOKEN_LEASE_EXPIRED:
+                    logging.debug(
+                        "Discarding token lease '%s' as it is now expired",
+                        lease.token,
+                    )
+                    cached_leases[self.__cached_lease_key].pop(i - num_discarded_leases)
+                    num_discarded_leases += 1
+                elif token_status == TokenLeaseStatus.TOKEN_LEASE_WRONG_PRIORITY:
+                    logging.debug(
+                        "Not using token lease '%s' as the priority boost is above "
+                        "the configured priority boost (%d <= %d)",
+                        lease.token,
+                        self.__priority_boost,
+                        lease.priority_boost,
+                    )
 
     def __set_cached_token_leases(self, leases: Iterable[quota_pb2.TokenLease]):
         """Replaces all cached token leases with a new set of leases."""
 
-        _leases = list(leases)
+        leases_with_expiration: list[tuple[datetime.datetime, quota_pb2.TokenLease]] = []
 
         # If Hub doesn't return an expiration date for any of the leases, infer
         # it using the duration_msec field associated with the lease.
-        for lease in _leases:
-            if lease.expires_at is None:
-                lease.expires_at = datetime.datetime.now() + timedelta(
-                    milliseconds=lease.duration_msec
+        for lease in leases:
+            expiration = (
+                datetime.datetime.now() + timedelta(milliseconds=lease.duration_msec)
+                if lease.expires_at.seconds == 0 and lease.expires_at.nanos == 0
+                else (
+                    datetime.datetime.fromtimestamp(lease.expires_at.seconds, timezone.utc)
+                    + timedelta(microseconds=lease.expires_at.nanos / 2000)
                 )
+            )
+            leases_with_expiration.append((expiration, lease))
 
         with cached_leases_lock:
-            cached_leases[self.__cached_lease_key].extend(_leases)
+            cached_leases[self.__cached_lease_key].extend(leases_with_expiration)
 
-    def __check_token_lease(self, lease: quota_pb2.TokenLease) -> bool:
-        """Returns false if a token lease is expired or invalid."""
+    def __check_token_lease(
+        self,
+        lease: quota_pb2.TokenLease,
+        expiration: datetime.datetime,
+    ) -> TokenLeaseStatus:
+        """Returns false if a token lease is expired or invalid.
 
-        if (
-            datetime.datetime.timestamp(datetime.datetime.now())
-            >= lease.expires_at.seconds
-        ):
+        Both the lease and its expiration are accepted separately. This is done
+        since Hub may not specify an expiration date in the lease it returns,
+        and we have to create it ourselves. The timestamp fields in the lease
+        messages are immutable and cannot be changed at runtime.
+        """
+
+        if datetime.datetime.now() >= expiration:
             logging.debug(
-                "Discarding token lease '%s' as it is now expired", lease.token
+                "%s >= %s",
+                datetime.datetime.now(),
+                expiration,
             )
-            return False  # Expired
-
-        # TODO: Use baggage value for priority boost.
-
-        # if baggage.priority_boost <= lease.priority_boost:
-        #     logging.debug(
-        #         "Discarding token lease '%s' as the priority boost is above "
-        #         "the configured priority boost (%d <= %d)",
-        #         lease.token,
-        #         self.priority_boost,
-        #         lease.priority_boost,
-        #     )
-        #     return False  # Priority boost is too high.
-
-        return True
+            return TokenLeaseStatus.TOKEN_LEASE_EXPIRED
+        elif self.__priority_boost > lease.priority_boost:
+            return TokenLeaseStatus.TOKEN_LEASE_WRONG_PRIORITY
+        else:
+            return TokenLeaseStatus.TOKEN_LEASE_VALID
 
     def __consume_token_lease(self, lease: quota_pb2.TokenLease):
         """Marks a token lease as consumed so we can notify Hub later."""
@@ -504,9 +545,7 @@ async def batch_token_consumer():
 
         for environment, leases in seized_leases.items():
             tasks.append(
-                asyncio.ensure_future(
-                    set_token_lease_consumed(leases, environment)
-                )  # type: ignore
+                asyncio.ensure_future(set_token_lease_consumed(leases, environment))  # type: ignore
             )
 
         if len(tasks) > 0:
@@ -550,6 +589,8 @@ async def set_token_lease_consumed(
     environment: str,
 ):
     """Consume a set of token leases for a given environment."""
+
+    import getstanza.client
 
     client = getstanza.client.StanzaClient.getInstance()
 
