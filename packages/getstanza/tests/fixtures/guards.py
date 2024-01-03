@@ -4,8 +4,8 @@ from unittest.mock import patch
 import pytest
 from getstanza.configuration import StanzaConfiguration
 from getstanza.guard import Guard
+from getstanza.tests.utils import async_noop, noop
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2_grpc
-from tests.utils import async_noop, noop
 
 
 def make_guard(
