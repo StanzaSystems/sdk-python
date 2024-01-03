@@ -216,53 +216,21 @@ class Guard:
 
         try:
             # Config state check
-            try:
-                self.__config_status = self.__check_config()
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking guard config"
-                )
-                self.__config_status = Config.CONFIG_NOT_FOUND
-
-            if (
-                self.__config_status != Config.CONFIG_CACHED_OK
-                and self.__config_status != Config.CONFIG_FETCHED_OK
-            ):
+            if not self.__check_config():
                 return self.allowed()
 
-            # Local (Sentinel) check
-            try:
-                self.__local_status = self.__check_local()
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking local rules"
-                )
-                self.__local_status = Local.LOCAL_ERROR
-
+            # Local rules check
+            self.__local_status = self.__check_local()
             if self.__local_status == Local.LOCAL_BLOCKED:
                 return self.allowed()
 
             # Ingress token check
-            try:
-                self.__token_status = self.__check_token(tokens)
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking ingress tokens"
-                )
-                self.__token_status = Token.TOKEN_VALIDATION_ERROR
-
-            if self.__local_status == Token.TOKEN_NOT_VALID:
+            self.__token_status = self.__check_token(tokens)
+            if self.__token_status == Token.TOKEN_NOT_VALID:
                 return self.allowed()
 
             # Quota check
-            try:
-                self.__quota_status, self.__quota_token = self.__check_quota()
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking quota"
-                )
-                self.__quota_status = Quota.QUOTA_ERROR
-
+            self.__quota_status, self.__quota_token = self.__check_quota()
             return self.allowed()
         finally:
             if not self.__error_message:
@@ -271,14 +239,16 @@ class Guard:
                 else:
                     self.__blocked()
 
-    def __check_config(self) -> Config:
+    def __check_config(self) -> bool:
         """Check guard configuration."""
-
-        return (
-            Config.CONFIG_CACHED_OK
-            if self.__guard_config is not None
-            else self.__config_status
-        )
+        if self.__guard_config is not None and (
+            self.__config_status == Config.CONFIG_CACHED_OK
+            or self.__config_status == Config.CONFIG_FETCHED_OK
+        ):
+            return True
+        else:
+            self.__failopen("failed to get guard config")
+            return False
 
     def __check_local(self) -> Local:
         """Local check is not currently supported by this SDK."""
