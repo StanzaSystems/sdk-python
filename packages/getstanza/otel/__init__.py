@@ -62,7 +62,7 @@ class OpenTelemetry:
                 self.__insecure,
                 resource=self.__resource,
                 endpoint=self.__metric_collector_url,
-                headers={"Authorization": "Bearer " + self.__bearer_token},
+                headers={"authorization": "Bearer " + self.__bearer_token},
             )
             self.__meter = self.__meter_provider.get_meter(
                 INSTRUMENTATION_NAME, INSTRUMENTATION_VERSION
@@ -81,7 +81,7 @@ class OpenTelemetry:
                 insecure=self.__insecure,
                 resource=self.__resource,
                 endpoint=self.__trace_collector_url,
-                headers={"Authorization": "Bearer " + self.__bearer_token},
+                headers={"authorization": "Bearer " + self.__bearer_token},
             )
             self.__tracer = self.__trace_provider.get_tracer(
                 INSTRUMENTATION_NAME, INSTRUMENTATION_VERSION
