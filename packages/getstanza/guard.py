@@ -413,38 +413,49 @@ class Guard:
 
     def end(self, status: GuardedStatus):
         """Called when the guarded logic comes to an end."""
+        # TODO: Add OTEL Attributes
+        if self.__otel:
+            if self.__start:
+                duration_ms = (
+                    datetime.datetime.now() - self.__start
+                ) / datetime.timedelta(milliseconds=1)
+                self.__otel.meter.AllowedDuration.record(duration_ms)
+            if status == GuardedStatus.GUARDED_SUCCESS:
+                self.__otel.meter.AllowedSuccessCount.add(1)
+            elif status == GuardedStatus.GUARDED_FAILURE:
+                self.__otel.meter.AllowedFailureCount.add(1)
+            else:
+                self.__otel.meter.AllowedUnknownCount.add(1)
 
-        # TODO: Collect success / failure metrics here.
+    def __emit_event(self, guard_event: GuardEvent, message: str):
+        """Log any type of guard event."""
 
-    def emit_event(self, guard_event: GuardEvent, message: str):
-        """Log any type of guard event to OTEL."""
+        if message != "":
+            logging.debug(f"{message}, %s", repr(self))
 
-        logging.debug(f"{message}, %s", repr(self))
+        if self.__otel:
+            if guard_event == GuardEvent.ALLOWED:
+                self.__otel.meter.AllowedCount.add(1)  # TODO: Add OTEL Attributes
+            elif guard_event == GuardEvent.BLOCKED:
+                self.__otel.meter.BlockedCount.add(1)  # TODO: Add OTEL Attributes
+            elif guard_event == GuardEvent.FAILOPEN:
+                self.__otel.meter.FailOpenCount.add(1)  # TODO: Add OTEL Attributes
 
     def __allowed(self):
-        """Log an allowed event to OTEL."""
+        """Log an allowed event."""
 
-        if self.__otel:
-            self.__otel.meter.AllowedCount.add(1)  # TODO: Add OTEL Attributes
-            # TODO: Add OTEL trace event to span
+        self.__emit_event(GuardEvent.ALLOWED, "Stanza allowed")
         self.__start = datetime.datetime.now()
-        self.emit_event(GuardEvent.ALLOWED, "Stanza allowed")
 
     def __blocked(self):
-        """Log a blocked event to OTEL."""
+        """Log a blocked event."""
 
-        if self.__otel:
-            self.__otel.meter.BlockedCount.add(1)  # TODO: Add OTEL Attributes
-            # TODO: Add OTEL trace event to span
-        self.emit_event(GuardEvent.BLOCKED, "Stanza blocked")
+        self.__emit_event(GuardEvent.BLOCKED, "Stanza blocked")
 
     def __failopen(self):
-        """Log a failopen event to OTEL."""
+        """Log a failopen event."""
 
-        if self.__otel:
-            self.__otel.meter.FailOpenCount.add(1)  # TODO: Add OTEL Attributes
-            # TODO: Add OTEL trace event to span
-        self.emit_event(
+        self.__emit_event(
             GuardEvent.FAILOPEN, f"Stanza failed open, {self.__error_message}"
         )
 
