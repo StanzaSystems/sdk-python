@@ -36,7 +36,6 @@ class OpenTelemetry:
 
         if os.environ.get("STANZA_OTEL_DEBUG"):
             self.__debug = True
-            self.__insecure = True
 
         if os.environ.get("STANZA_OTEL_INSECURE"):
             self.__insecure = True
