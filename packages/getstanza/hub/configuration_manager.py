@@ -104,6 +104,7 @@ class StanzaHubConfigurationManager:
         if service_config_response.config_data_sent:
             self.__service_config = service_config_response.config
             self.__service_config_version = service_config_response.version
+            self.config.customer_id = service_config_response.config.customer_id
             logging.debug(
                 "Service config has changed from version '%s' to '%s'",
                 last_version_seen,

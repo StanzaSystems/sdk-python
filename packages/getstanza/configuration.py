@@ -71,4 +71,5 @@ class StanzaConfiguration:
         self.otel: Optional[OpenTelemetry] = None
         self.interval = datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS)
         self.client_id = str(uuid.uuid4())
+        self.customer_id: Optional[str] = None
         self.metadata = [("x-stanza-key", self.api_key)]

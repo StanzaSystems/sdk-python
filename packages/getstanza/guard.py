@@ -10,11 +10,10 @@ from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
-
-# from opentelemetry.metrics import Meter
 from getstanza.otel import OpenTelemetry
+from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
-from stanza.hub.v1.common_pb2 import Config, Local, Quota, Token
+from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
 
 # Definition for the 200ms deadline for communicated consumed tokens to Hub.
 # Specification Link: https://github.com/StanzaSystems/sdk-spec#token-leases
@@ -187,6 +186,10 @@ class Guard:
         self.__quota_token: Optional[str] = None
         self.__error_message: Optional[str] = None
         self.__start: Optional[datetime.datetime] = None
+
+        self.__mode = Mode.MODE_NORMAL
+        if self.__guard_config and self.__guard_config.report_only:
+            self.__mode = Mode.MODE_REPORT_ONLY
 
         self.__config_status = guard_config_status
         self.__local_status = Local.LOCAL_NOT_EVAL
@@ -392,7 +395,7 @@ class Guard:
             return True
 
         # Always allow traffic when 'report only' is set.
-        if self.__guard_config and self.__guard_config.report_only:
+        if self.__mode == Mode.MODE_REPORT_ONLY:
             return True
 
         # Allow if all of the following checks have succeeded.
@@ -413,19 +416,36 @@ class Guard:
 
     def end(self, status: GuardedStatus):
         """Called when the guarded logic comes to an end."""
-        # TODO: Add OTEL Attributes
         if self.__otel:
             if self.__start:
                 duration_ms = (
                     datetime.datetime.now() - self.__start
                 ) / datetime.timedelta(milliseconds=1)
-                self.__otel.meter.AllowedDuration.record(duration_ms)
+                self.__otel.meter.AllowedDuration.record(
+                    duration_ms, self.__attributes()
+                )
             if status == GuardedStatus.GUARDED_SUCCESS:
-                self.__otel.meter.AllowedSuccessCount.add(1)
+                self.__otel.meter.AllowedSuccessCount.add(1, self.__attributes())
             elif status == GuardedStatus.GUARDED_FAILURE:
-                self.__otel.meter.AllowedFailureCount.add(1)
+                self.__otel.meter.AllowedFailureCount.add(1, self.__attributes())
             else:
-                self.__otel.meter.AllowedUnknownCount.add(1)
+                self.__otel.meter.AllowedUnknownCount.add(1, self.__attributes())
+
+    def __attributes(self) -> Attributes:
+        attr: Attributes = {
+            "client_id": self.__stanza_config.client_id,
+            "customer_id": str(self.__stanza_config.customer_id or ""),
+            "environment": str(self.__stanza_config.environment or ""),
+            "guard": self.__guard_name,
+            "feature": str(self.__feature_name or ""),
+            "service": str(self.__stanza_config.service_name or ""),
+            "mode": Mode.Name(self.__mode),
+            "config_state": Config.Name(self.__config_status),
+            "local_reason": Local.Name(self.__local_status),
+            "token_reason": Token.Name(self.__token_status),
+            "quota_reason": Quota.Name(self.__quota_status),
+        }
+        return attr
 
     def __emit_event(self, guard_event: GuardEvent, message: str):
         """Log any type of guard event."""
@@ -435,11 +455,11 @@ class Guard:
 
         if self.__otel:
             if guard_event == GuardEvent.ALLOWED:
-                self.__otel.meter.AllowedCount.add(1)  # TODO: Add OTEL Attributes
+                self.__otel.meter.AllowedCount.add(1, self.__attributes())
             elif guard_event == GuardEvent.BLOCKED:
-                self.__otel.meter.BlockedCount.add(1)  # TODO: Add OTEL Attributes
+                self.__otel.meter.BlockedCount.add(1, self.__attributes())
             elif guard_event == GuardEvent.FAILOPEN:
-                self.__otel.meter.FailOpenCount.add(1)  # TODO: Add OTEL Attributes
+                self.__otel.meter.FailOpenCount.add(1, self.__attributes())
 
     def __allowed(self):
         """Log an allowed event."""
