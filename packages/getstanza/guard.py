@@ -272,7 +272,7 @@ class Guard:
         return (
             Config.CONFIG_CACHED_OK
             if self.__guard_config is not None
-            else Config.CONFIG_NOT_FOUND
+            else self.__config_status
         )
 
     def __check_local(self) -> Local:
