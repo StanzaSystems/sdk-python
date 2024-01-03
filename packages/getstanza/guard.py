@@ -194,14 +194,12 @@ class Guard:
     def __repr__(self) -> str:
         """Returns all of the current status state of the guard."""
 
-        return (
-            "guard={}, config_state={}, local_reason={}, token_reason={}, quota_reason={}".format(
-                self.__guard_name,
-                Config.Name(self.__config_status),
-                Local.Name(self.__local_status),
-                Token.Name(self.__token_status),
-                Quota.Name(self.__quota_status),
-            )
+        return "guard={}, config_state={}, local_reason={}, token_reason={}, quota_reason={}".format(
+            self.__guard_name,
+            Config.Name(self.__config_status),
+            Local.Name(self.__local_status),
+            Token.Name(self.__token_status),
+            Quota.Name(self.__quota_status),
         )
 
     async def run(self, tokens: Optional[Iterable[str]] = None) -> bool:
@@ -212,7 +210,9 @@ class Guard:
             try:
                 self.__config_status = self.__check_config()
             except Exception:
-                logging.exception("Received unexpected exception while checking guard config")
+                logging.exception(
+                    "Received unexpected exception while checking guard config"
+                )
                 self.__config_status = Config.CONFIG_NOT_FOUND
 
             if (
@@ -225,7 +225,9 @@ class Guard:
             try:
                 self.__local_status = self.__check_local()
             except Exception:
-                logging.exception("Received unexpected exception while checking Sentinel")
+                logging.exception(
+                    "Received unexpected exception while checking Sentinel"
+                )
                 self.__local_status = Local.LOCAL_ERROR
 
             if self.__local_status == Local.LOCAL_BLOCKED:
@@ -235,7 +237,9 @@ class Guard:
             try:
                 self.__token_status = self.__check_token(tokens)
             except Exception:
-                logging.exception("Received unexpected exception while checking ingress tokens")
+                logging.exception(
+                    "Received unexpected exception while checking ingress tokens"
+                )
                 self.__token_status = Token.TOKEN_VALIDATION_ERROR
 
             if self.__local_status == Token.TOKEN_NOT_VALID:
@@ -245,7 +249,9 @@ class Guard:
             try:
                 self.__quota_status, self.__quota_token = self.__check_quota()
             except Exception:
-                logging.exception("Received unexpected exception while checking Sentinel")
+                logging.exception(
+                    "Received unexpected exception while checking Sentinel"
+                )
                 self.__quota_status = Quota.QUOTA_ERROR
 
             return self.allowed()
@@ -260,7 +266,9 @@ class Guard:
         """Check guard configuration."""
 
         return (
-            Config.CONFIG_CACHED_OK if self.__guard_config is not None else Config.CONFIG_NOT_FOUND
+            Config.CONFIG_CACHED_OK
+            if self.__guard_config is not None
+            else Config.CONFIG_NOT_FOUND
         )
 
     def __check_local(self) -> Local:
@@ -304,7 +312,11 @@ class Guard:
             self.__failopen(rpc_error.debug_error_string())  # type: ignore
             return Token.TOKEN_VALIDATION_ERROR
 
-        return Token.TOKEN_VALID if validate_token_response.valid else Token.TOKEN_NOT_VALID
+        return (
+            Token.TOKEN_VALID
+            if validate_token_response.valid
+            else Token.TOKEN_NOT_VALID
+        )
 
     def __check_quota(self) -> tuple[Quota, Optional[str]]:
         """Quota check using token leases."""
@@ -466,7 +478,9 @@ class Guard:
     def __set_cached_token_leases(self, leases: Iterable[quota_pb2.TokenLease]):
         """Replaces all cached token leases with a new set of leases."""
 
-        leases_with_expiration: list[tuple[datetime.datetime, quota_pb2.TokenLease]] = []
+        leases_with_expiration: list[
+            tuple[datetime.datetime, quota_pb2.TokenLease]
+        ] = []
 
         # If Hub doesn't return an expiration date for any of the leases, infer
         # it using the duration_msec field associated with the lease.
@@ -475,7 +489,9 @@ class Guard:
                 datetime.datetime.now() + timedelta(milliseconds=lease.duration_msec)
                 if lease.expires_at.seconds == 0 and lease.expires_at.nanos == 0
                 else (
-                    datetime.datetime.fromtimestamp(lease.expires_at.seconds, timezone.utc)
+                    datetime.datetime.fromtimestamp(
+                        lease.expires_at.seconds, timezone.utc
+                    )
                     + timedelta(microseconds=lease.expires_at.nanos / 2000)
                 )
             )
