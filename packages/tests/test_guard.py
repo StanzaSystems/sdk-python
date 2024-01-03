@@ -1,6 +1,34 @@
+from collections import defaultdict
+
 import pytest
+from getstanza import guard
+from pytest_socket import enable_socket, socket_allow_hosts
 from stanza.hub.v1 import quota_pb2
 from stanza.hub.v1.common_pb2 import Local, Quota, Token
+
+
+@pytest.fixture(autouse=True)
+def setup_and_teardown():
+    """Clear global cached and consumed lease state between each test."""
+
+    # Block internet access by default for all tests as we mock all calls going
+    # out to Hub. Tests will throw 'SocketBlockedError' errors if a mock is
+    # missing whilst executing them.
+    #
+    # We have two notable exceptions. We explicitly allow localhost so that the
+    # VSCode debugger doesn't get blocked, and we also allow UNIX sockets since
+    # asyncio appears to rely on them.
+    socket_allow_hosts(allowed=["localhost"], allow_unix_socket=True)
+
+    yield  # Run the test before executing the teardown logic.
+
+    with guard.cached_leases_lock:
+        guard.cached_leases = defaultdict(list)
+
+    with guard.consumed_leases_lock:
+        guard.consumed_leases = defaultdict(list)
+
+    enable_socket()
 
 
 def test_guard_allows_default(quota_guard):
@@ -117,37 +145,103 @@ async def test_guard_quota_blocked(quota_guard, quota_service):
     assert quota_guard.blocked()
 
 
-# TODO: Clear global cached and consumed lease state between each test.
+@pytest.mark.asyncio
+async def test_guard_feature_passed(quota_guard_with_feature, quota_service):
+    """It should request quota with specified feature."""
+
+    quota_service.GetTokenLease.return_value = quota_pb2.GetTokenLeaseResponse(
+        granted=False,
+        leases=[],
+    )
+
+    await quota_guard_with_feature.run()
+
+    quota_service.GetTokenLease.assert_called_once()
+
+    token_lease_request: quota_pb2.GetTokenLeaseRequest = (
+        quota_service.GetTokenLease.call_args.kwargs["request"]
+    )
+    assert token_lease_request.selector.feature_name == "QuotaGuardFeature"
+
+    assert quota_guard_with_feature.local_status == Local.LOCAL_NOT_SUPPORTED
+    assert quota_guard_with_feature.token_status == Token.TOKEN_EVAL_DISABLED
+    assert quota_guard_with_feature.quota_status == Quota.QUOTA_BLOCKED
+    assert quota_guard_with_feature.blocked()
 
 
-# === Guard Quota Tests ===
-#
-# It should request quota with specified feature
-# It should request quota with specified priority boost
-# It should request quota with sum of specified priority boost and value from baggage
+@pytest.mark.asyncio
+async def test_guard_priority_boost_passed(quota_guard_with_priority_boost, quota_service):
+    """It should request quota with specified priority boost."""
 
-# TODO: Add baggage and context tests.
-#
-# It should request quota with feature from baggage
-# It should request quota with priority boost from baggage
+    quota_service.GetTokenLease.return_value = quota_pb2.GetTokenLeaseResponse(
+        granted=False,
+        leases=[],
+    )
+
+    await quota_guard_with_priority_boost.run()
+
+    quota_service.GetTokenLease.assert_called_once()
+
+    token_lease_request: quota_pb2.GetTokenLeaseRequest = (
+        quota_service.GetTokenLease.call_args.kwargs["request"]
+    )
+    assert token_lease_request.priority_boost == 5
+
+    assert quota_guard_with_priority_boost.local_status == Local.LOCAL_NOT_SUPPORTED
+    assert quota_guard_with_priority_boost.token_status == Token.TOKEN_EVAL_DISABLED
+    assert quota_guard_with_priority_boost.quota_status == Quota.QUOTA_BLOCKED
+    assert quota_guard_with_priority_boost.blocked()
+
+
+# TODO: Add baggage and context tests
+
 
 # ===========================
 # === Ingress Token Tests ===
 # ===========================
 
-# === Guard Ingress Token Tests ===
-#
-# It should NOT be pass-through execution after config is fetched.
-# It should validate token before proceeding with execution
-# It should fail the execution if token is not validated
-# It should NOT be pass-through execution after config is fetched
-# It should proceed execution if validating token throws
-# It should proceed execution if validating token takes more than 1000ms
-# It should fail the execution if ingress token is validated but new token is not granted
+
+@pytest.mark.asyncio
+async def test_guard_valid_ingress_token(token_guard, quota_service):
+    """It should validate token before proceeding with execution."""
+
+    quota_service.ValidateToken.return_value = quota_pb2.ValidateTokenResponse(
+        valid=True,
+        tokens_valid=[],
+    )
+
+    await token_guard.run(tokens=["valid_token"])
+
+    quota_service.GetTokenLease.assert_not_called()
+    quota_service.ValidateToken.assert_called_once()
+
+    assert token_guard.local_status == Local.LOCAL_NOT_SUPPORTED
+    assert token_guard.token_status == Token.TOKEN_VALID
+    assert token_guard.quota_status == Quota.QUOTA_EVAL_DISABLED
+    assert token_guard.allowed()
+
+
+@pytest.mark.asyncio
+async def test_guard_invalid_ingress_token(token_guard, quota_service):
+    """It should block invalid tokens before proceeding with execution."""
+
+    quota_service.ValidateToken.return_value = quota_pb2.ValidateTokenResponse(
+        valid=False,
+        tokens_valid=[],
+    )
+
+    await token_guard.run(tokens=["invalid_token"])
+
+    quota_service.GetTokenLease.assert_not_called()
+    quota_service.ValidateToken.assert_called_once()
+
+    assert token_guard.local_status == Local.LOCAL_NOT_SUPPORTED
+    assert token_guard.token_status == Token.TOKEN_NOT_VALID
+    assert token_guard.quota_status == Quota.QUOTA_EVAL_DISABLED
+    assert token_guard.blocked()
+
 
 # TODO: Add baggage and context tests.
-#
-# It should error execution after config is fetched and no token is provided in context
 
 
 # =========================
@@ -171,17 +265,3 @@ async def test_guard_quota_report_only(report_only_guard, quota_service):
     assert report_only_guard.token_status == Token.TOKEN_EVAL_DISABLED
     assert report_only_guard.quota_status == Quota.QUOTA_BLOCKED
     assert report_only_guard.allowed()
-
-
-# === SDK Client Level Guard Tests ===
-#
-# It should fetch guard config upon initialization.
-# It should allow if getting the configuration fails.
-# It should block execution until the service configuration is fetched.
-
-# === Configuration Manager Level Tests ===
-#
-# It should only fetch guard configurations once when invoked multiple times.
-# It should fetch guard config only once upon initialization of the same guard
-#    multiple times - with different features and priority boosts.
-# It should fetch guard config only once per different.

@@ -70,6 +70,34 @@ def quota_guard(stanza_config, quota_guard_config, quota_service):
 
 
 @pytest.fixture
+def quota_guard_with_feature(stanza_config, quota_guard_config, quota_service):
+    return make_guard(
+        quota_service,
+        stanza_config,
+        quota_guard_config,
+        common_pb2.Config.CONFIG_CACHED_OK,
+        "QuotaGuard",
+        feature_name="QuotaGuardFeature",
+        priority_boost=0,
+        tags=None,
+    )
+
+
+@pytest.fixture
+def quota_guard_with_priority_boost(stanza_config, quota_guard_config, quota_service):
+    return make_guard(
+        quota_service,
+        stanza_config,
+        quota_guard_config,
+        common_pb2.Config.CONFIG_CACHED_OK,
+        "QuotaGuard",
+        feature_name=None,
+        priority_boost=5,
+        tags=None,
+    )
+
+
+@pytest.fixture
 def guard_without_config(stanza_config, quota_service):
     return make_guard(
         quota_service,
@@ -136,11 +164,11 @@ def token_guard_config():
 
 
 @pytest.fixture
-def token_guard(stanza_config, quota_guard_config, quota_service):
+def token_guard(stanza_config, token_guard_config, quota_service):
     return make_guard(
         quota_service,
         stanza_config,
-        quota_guard_config,
+        token_guard_config,
         common_pb2.Config.CONFIG_CACHED_OK,
         "TokenGuard",
         feature_name=None,
