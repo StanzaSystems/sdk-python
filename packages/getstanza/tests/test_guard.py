@@ -81,7 +81,9 @@ async def test_guard_allows_when_config_fetch_timeout(
 
 
 @pytest.mark.asyncio
-async def test_guard_blocks_when_config_not_found(quota_service, guard_without_config_not_found):
+async def test_guard_blocks_when_config_not_found(
+    quota_service, guard_without_config_not_found
+):
     """It should block if getting the configuration fails (not found)"""
 
     await guard_without_config_not_found.run()
@@ -170,7 +172,9 @@ async def test_guard_feature_passed(quota_guard_with_feature, quota_service):
 
 
 @pytest.mark.asyncio
-async def test_guard_priority_boost_passed(quota_guard_with_priority_boost, quota_service):
+async def test_guard_priority_boost_passed(
+    quota_guard_with_priority_boost, quota_service
+):
     """It should request quota with specified priority boost."""
 
     quota_service.GetTokenLease.return_value = quota_pb2.GetTokenLeaseResponse(
@@ -237,7 +241,7 @@ async def test_guard_invalid_ingress_token(token_guard, quota_service):
 
     assert token_guard.local_status == Local.LOCAL_NOT_SUPPORTED
     assert token_guard.token_status == Token.TOKEN_NOT_VALID
-    assert token_guard.quota_status == Quota.QUOTA_EVAL_DISABLED
+    assert token_guard.quota_status == Quota.QUOTA_NOT_EVAL
     assert token_guard.blocked()
 
 

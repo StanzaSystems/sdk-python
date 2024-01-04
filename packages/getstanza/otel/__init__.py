@@ -1,9 +1,6 @@
 import logging
 import os
-from typing import cast
 
-# from getstanza.configuration import StanzaConfiguration
-import getstanza.client
 from getstanza.otel.meter import StanzaMeter, StanzaMeterProvider
 from getstanza.otel.tracer import StanzaTracerProvider
 from opentelemetry.sdk.resources import Resource
@@ -25,10 +22,14 @@ class OpenTelemetry:
         return self.__tracer
 
     def __init__(
-        self, bearer_token: str, metric_collector_url: str, trace_collector_url: str
+        self,
+        bearer_token: str,
+        metric_collector_url: str,
+        trace_collector_url: str,
+        service_name: str,
+        service_release: str,
+        environment: str,
     ):
-        client = getstanza.client.StanzaClient.getInstance()
-
         self.__debug = False
         self.__insecure = False
         self.__metric_collector_url = metric_collector_url
@@ -47,9 +48,9 @@ class OpenTelemetry:
         # https://opentelemetry.io/docs/specs/otel/resource/sdk/
         self.__resource = Resource.create(
             {
-                "service.name": cast(str, client.config.service_name),
-                "service.version": cast(str, client.config.service_release),
-                "deployment.environment": cast(str, client.config.environment),
+                "service.name": service_name,
+                "service.version": service_release,
+                "deployment.environment": environment,
             }
         )
 
