@@ -71,6 +71,10 @@ class Guard:
         return GuardedStatus.GUARDED_FAILURE
 
     @property
+    def config_status(self):
+        return self.__config_status
+
+    @property
     def local_status(self):
         return self.__local_status
 
@@ -87,7 +91,7 @@ class Guard:
         return self.__quota_token
 
     @property
-    def guard_config(self) -> config_pb2.GuardConfig:
+    def guard_config(self) -> Optional[config_pb2.GuardConfig]:
         return self.__guard_config
 
     @property
@@ -156,8 +160,8 @@ class Guard:
         self,
         quota_service: quota_pb2_grpc.QuotaServiceStub,
         stanza_config: StanzaConfiguration,
-        guard_config: config_pb2.GuardConfig,
-        guard_config_status: int,
+        guard_config: Optional[config_pb2.GuardConfig],
+        guard_config_status: Config,
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
@@ -268,7 +272,7 @@ class Guard:
         return (
             Config.CONFIG_CACHED_OK
             if self.__guard_config is not None
-            else Config.CONFIG_NOT_FOUND
+            else self.__config_status
         )
 
     def __check_local(self) -> Local:
@@ -279,7 +283,7 @@ class Guard:
     def __check_token(self, tokens: Optional[Iterable[str]] = None) -> Token:
         """Validate using the ingress token if configured to do so."""
 
-        if not self.__guard_config.validate_ingress_tokens:
+        if not self.__guard_config or not self.__guard_config.validate_ingress_tokens:
             return Token.TOKEN_EVAL_DISABLED
 
         if not tokens:
@@ -321,7 +325,7 @@ class Guard:
     def __check_quota(self) -> tuple[Quota, Optional[str]]:
         """Quota check using token leases."""
 
-        if not self.__guard_config.check_quota:
+        if not self.__guard_config or not self.__guard_config.check_quota:
             return Quota.QUOTA_EVAL_DISABLED, None
 
         # TODO: Check baggage for stz-feat and stz-boost
@@ -389,6 +393,14 @@ class Guard:
 
     def allowed(self) -> bool:
         """Check if the Guard is currently allowing traffic."""
+
+        # Allow if config is unspecified or failed to fetch the first time.
+        if self.__guard_config is None and self.__config_status in [
+            Config.CONFIG_UNSPECIFIED,
+            Config.CONFIG_FETCH_ERROR,
+            Config.CONFIG_FETCH_TIMEOUT,
+        ]:
+            return True
 
         # Always allow traffic when 'report only' is set.
         if self.__guard_config and self.__guard_config.report_only:

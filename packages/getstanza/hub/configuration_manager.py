@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import MutableMapping, Optional, Tuple, TypedDict
+from typing import MutableMapping, Optional, TypedDict
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
@@ -36,7 +36,7 @@ class StanzaHubConfigurationManager:
 
     async def get_guard_config(
         self, guard_name: str
-    ) -> (Tuple[config_pb2.GuardConfig, int]):
+    ) -> (tuple[config_pb2.GuardConfig, common_pb2.Config]):
         """Retrieves the guard config for a specified guard."""
 
         if guard_name in self.__guard_configs:
@@ -92,7 +92,7 @@ class StanzaHubConfigurationManager:
 
     async def fetch_guard_config(
         self, guard_name: str
-    ) -> (Tuple[config_pb2.GuardConfig, int]):
+    ) -> (tuple[config_pb2.GuardConfig, common_pb2.Config]):
         """Fetch guard configuration changes for a specific guard."""
 
         existing_guard_config = self.__guard_configs.get(guard_name)
