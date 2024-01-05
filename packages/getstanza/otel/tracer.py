@@ -12,8 +12,8 @@ from opentelemetry.sdk.trace.export import (
 from opentelemetry.trace import Tracer
 
 # Constants per Stanza SDK spec
-TRACE_EXPORT_INTERVAL: float = 10_000  # 10,000 milliseconds = 10 seconds
-TRACE_EXPORT_TIMEOUT: float = 30_000  # 30,000 milliseconds = 30 seconds
+TRACE_EXPORT_INTERVAL = 10_000  # 10,000 milliseconds = 10 seconds
+TRACE_EXPORT_TIMEOUT = 30_000  # 30,000 milliseconds = 30 seconds
 
 
 class StanzaTracerProvider:

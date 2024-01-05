@@ -187,10 +187,11 @@ class Guard:
         self.__error_message: Optional[str] = None
         self.__start: Optional[datetime.datetime] = None
 
-        self.__mode = Mode.MODE_NORMAL
-        if self.__guard_config and self.__guard_config.report_only:
-            self.__mode = Mode.MODE_REPORT_ONLY
-
+        self.__mode = (
+            Mode.MODE_REPORT_ONLY
+            if self.__guard_config and self.__guard_config.report_only
+            else Mode.MODE_NORMAL
+        )
         self.__config_status = guard_config_status
         self.__local_status = Local.LOCAL_NOT_EVAL
         self.__token_status = Token.TOKEN_NOT_EVAL

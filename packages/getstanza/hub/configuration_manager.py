@@ -113,16 +113,18 @@ class StanzaHubConfigurationManager:
 
             # TODO: reconnect OTEL if metric or trace collector_url has changed
             if not self.config.otel:
-                otel = OpenTelemetry(
-                    bearer_token=await self.fetch_otel_bearer_token(),
-                    metric_collector_url=service_config_response.config.metric_config.collector_url,
-                    trace_collector_url=service_config_response.config.trace_config.collector_url,
-                    service_name=str(self.config.service_name or ""),
-                    service_release=str(self.config.service_release or ""),
-                    environment=str(self.config.environment or ""),
-                )
-                if otel.new_meter() and otel.new_tracer():
-                    self.config.otel = otel
+                bearer_token = await self.fetch_otel_bearer_token()
+                if bearer_token:
+                    otel = OpenTelemetry(
+                        bearer_token=bearer_token,
+                        metric_collector_url=service_config_response.config.metric_config.collector_url,
+                        trace_collector_url=service_config_response.config.trace_config.collector_url,
+                        service_name=str(self.config.service_name or ""),
+                        service_release=str(self.config.service_release or ""),
+                        environment=str(self.config.environment or ""),
+                    )
+                    if otel.new_meter() and otel.new_tracer():
+                        self.config.otel = otel
 
     async def fetch_guard_config(
         self, guard_name: str

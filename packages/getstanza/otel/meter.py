@@ -12,8 +12,8 @@ from opentelemetry.sdk.metrics.export import (
 from opentelemetry.sdk.resources import Resource
 
 # Constants per Stanza SDK spec
-METRIC_EXPORT_INTERVAL: float = 10_000  # 10,000 milliseconds = 10 seconds
-METRIC_EXPORT_TIMEOUT: float = 30_000  # 30,000 milliseconds = 30 seconds
+METRIC_EXPORT_INTERVAL = 10_000  # 10,000 milliseconds = 10 seconds
+METRIC_EXPORT_TIMEOUT = 30_000  # 30,000 milliseconds = 30 seconds
 
 
 class StanzaMeter:
