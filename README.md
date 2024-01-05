@@ -2,7 +2,7 @@
 
 Stanza is a developer-first tool for increasing reliability based on prioritized traffic management, quota allocation, and rate-limiting. On the back-end, it helps prevent downtime related to overload and excessive use of third-party APIs. On the front-end, it helps segment and weight your traffic, react automatically to overload or other conditions, and inspect the state of your critical user journeys.
 
-"Stanza Python SDK" provides higher-order functions (["guards"](https://docs.dev.getstanza.dev/glossary#guard)) for adding this fault tolerance to your python 3.8+ application.
+"Stanza Python SDK" provides higher-order functions (["guards"](https://docs.dev.getstanza.dev/glossary#guard)) for adding this fault tolerance to your python 3.9+ application.
 
 ## Installation
 

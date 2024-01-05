@@ -10,8 +10,10 @@ from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
+from getstanza.otel import OpenTelemetry
+from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
-from stanza.hub.v1.common_pb2 import Config, Local, Quota, Token
+from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
 
 # Definition for the 200ms deadline for communicated consumed tokens to Hub.
 # Specification Link: https://github.com/StanzaSystems/sdk-spec#token-leases
@@ -163,6 +165,7 @@ class Guard:
         guard_config: Optional[config_pb2.GuardConfig],
         guard_config_status: Config,
         guard_name: str,
+        otel: Optional[OpenTelemetry] = None,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
@@ -174,6 +177,7 @@ class Guard:
         self.__stanza_config = stanza_config
         self.__guard_config = guard_config
         self.__guard_name = guard_name
+        self.__otel = otel
         self.__feature_name = feature_name
         self.__priority_boost = 0 if priority_boost is None else priority_boost
         self.__default_weight = 0 if default_weight is None else default_weight
@@ -183,6 +187,11 @@ class Guard:
         self.__error_message: Optional[str] = None
         self.__start: Optional[datetime.datetime] = None
 
+        self.__mode = (
+            Mode.MODE_REPORT_ONLY
+            if self.__guard_config and self.__guard_config.report_only
+            else Mode.MODE_NORMAL
+        )
         self.__config_status = guard_config_status
         self.__local_status = Local.LOCAL_NOT_EVAL
         self.__token_status = Token.TOKEN_NOT_EVAL
@@ -206,88 +215,65 @@ class Guard:
             Quota.Name(self.__quota_status),
         )
 
-    async def run(self, tokens: Optional[Iterable[str]] = None) -> bool:
+    async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
 
         try:
             # Config state check
-            try:
-                self.__config_status = self.__check_config()
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking guard config"
-                )
-                self.__config_status = Config.CONFIG_NOT_FOUND
+            if not self.__check_config():
+                return
 
-            if (
-                self.__config_status != Config.CONFIG_CACHED_OK
-                and self.__config_status != Config.CONFIG_FETCHED_OK
-            ):
-                return self.allowed()
-
-            # Local (Sentinel) check
-            try:
-                self.__local_status = self.__check_local()
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking Sentinel"
-                )
-                self.__local_status = Local.LOCAL_ERROR
-
-            if self.__local_status == Local.LOCAL_BLOCKED:
-                return self.allowed()
+            # Local rules check
+            if not self.__check_local():
+                return
 
             # Ingress token check
-            try:
-                self.__token_status = self.__check_token(tokens)
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking ingress tokens"
-                )
-                self.__token_status = Token.TOKEN_VALIDATION_ERROR
-
-            if self.__local_status == Token.TOKEN_NOT_VALID:
-                return self.allowed()
+            if not self.__check_token(tokens):
+                return
 
             # Quota check
-            try:
-                self.__quota_status, self.__quota_token = self.__check_quota()
-            except Exception:
-                logging.exception(
-                    "Received unexpected exception while checking Sentinel"
-                )
-                self.__quota_status = Quota.QUOTA_ERROR
+            self.__check_quota()
 
-            return self.allowed()
-        finally:
+        except Exception as exc:
             if not self.__error_message:
-                if self.allowed():
-                    self.__allowed()
-                else:
-                    self.__blocked()
+                template = "an unknown exception of type {0} occurred"
+                self.__error_message = template.format(type(exc).__name__)
 
-    def __check_config(self) -> Config:
+        finally:
+            if self.__error_message:
+                self.__failopen()
+            elif self.allowed():
+                self.__allowed()
+            else:
+                self.__blocked()
+
+    def __check_config(self) -> bool:
         """Check guard configuration."""
+        if self.__guard_config is not None and (
+            self.__config_status == Config.CONFIG_CACHED_OK
+            or self.__config_status == Config.CONFIG_FETCHED_OK
+        ):
+            return True
+        else:
+            self.__error_message = "unable to fetch guard config"
+            return False
 
-        return (
-            Config.CONFIG_CACHED_OK
-            if self.__guard_config is not None
-            else self.__config_status
-        )
-
-    def __check_local(self) -> Local:
+    def __check_local(self) -> bool:
         """Local check is not currently supported by this SDK."""
 
-        return Local.LOCAL_NOT_SUPPORTED
+        self.__local_status = Local.LOCAL_NOT_SUPPORTED
+        return True
 
-    def __check_token(self, tokens: Optional[Iterable[str]] = None) -> Token:
+    def __check_token(self, tokens: Optional[Iterable[str]] = None) -> bool:
         """Validate using the ingress token if configured to do so."""
 
         if not self.__guard_config or not self.__guard_config.validate_ingress_tokens:
-            return Token.TOKEN_EVAL_DISABLED
+            self.__token_status = Token.TOKEN_EVAL_DISABLED
+            return True
 
         if not tokens:
-            return Token.TOKEN_NOT_VALID
+            self.__token_status = Token.TOKEN_NOT_VALID
+            return False
 
         tokens_info = list(
             map(
@@ -313,28 +299,32 @@ class Guard:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            self.__failopen(rpc_error.debug_error_string())  # type: ignore
-            return Token.TOKEN_VALIDATION_ERROR
+            self.__error_message = "{}".format(str(rpc_error))
+            self.__token_status = Token.TOKEN_VALIDATION_ERROR
+            return False
 
-        return (
-            Token.TOKEN_VALID
-            if validate_token_response.valid
-            else Token.TOKEN_NOT_VALID
-        )
+        if validate_token_response.valid:
+            self.__token_status = Token.TOKEN_VALID
+            return True
+        else:
+            self.__token_status = Token.TOKEN_NOT_VALID
+            return False
 
-    def __check_quota(self) -> tuple[Quota, Optional[str]]:
+    def __check_quota(self) -> bool:
         """Quota check using token leases."""
 
         if not self.__guard_config or not self.__guard_config.check_quota:
-            return Quota.QUOTA_EVAL_DISABLED, None
+            self.__quota_status = Quota.QUOTA_EVAL_DISABLED
+            return True
 
         # TODO: Check baggage for stz-feat and stz-boost
 
         # Check to see if a cached lease can be found using the guard selector.
         if cached_lease := self.__consume_cached_token_lease():
             logging.debug("Found a valid cached token lease: %s", cached_lease.token)
-
-            return Quota.QUOTA_GRANTED, cached_lease.token
+            self.__quota_status = Quota.QUOTA_GRANTED
+            self.__quota_token = cached_lease.token
+            return True
 
         token_lease_request = quota_pb2.GetTokenLeaseRequest(
             selector=common_pb2.GuardFeatureSelector(
@@ -367,8 +357,9 @@ class Guard:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            self.__failopen(rpc_error.debug_error_string())  # type: ignore
-            return Quota.QUOTA_BLOCKED, None
+            self.__error_message = "{}".format(str(rpc_error))
+            self.__quota_status = Quota.QUOTA_ERROR
+            return False
 
         # Immediately consume a lease upon being granted token leases, and
         # cache the rest for later use; otherwise set quota status to BLOCKED.
@@ -385,11 +376,13 @@ class Guard:
             if len(token_lease_response.leases) > 1:
                 self.__set_cached_token_leases(token_lease_response.leases[1:])
 
-            return Quota.QUOTA_GRANTED, lease.token
+            self.__quota_status = Quota.QUOTA_GRANTED
+            self.__quota_token = lease.token
+            return True
 
         logging.debug("Token lease request has been denied")
-
-        return Quota.QUOTA_BLOCKED, None
+        self.__quota_status = Quota.QUOTA_BLOCKED
+        return False
 
     def allowed(self) -> bool:
         """Check if the Guard is currently allowing traffic."""
@@ -403,7 +396,7 @@ class Guard:
             return True
 
         # Always allow traffic when 'report only' is set.
-        if self.__guard_config and self.__guard_config.report_only:
+        if self.__mode == Mode.MODE_REPORT_ONLY:
             return True
 
         # Allow if all of the following checks have succeeded.
@@ -424,33 +417,68 @@ class Guard:
 
     def end(self, status: GuardedStatus):
         """Called when the guarded logic comes to an end."""
+        if self.__otel:
+            if self.__start:
+                duration_ms = (
+                    datetime.datetime.now() - self.__start
+                ) / datetime.timedelta(milliseconds=1)
+                self.__otel.meter.AllowedDuration.record(
+                    duration_ms, self.__attributes()
+                )
+            if status == GuardedStatus.GUARDED_SUCCESS:
+                self.__otel.meter.AllowedSuccessCount.add(1, self.__attributes())
+            elif status == GuardedStatus.GUARDED_FAILURE:
+                self.__otel.meter.AllowedFailureCount.add(1, self.__attributes())
+            else:
+                self.__otel.meter.AllowedUnknownCount.add(1, self.__attributes())
 
-        # TODO: Collect success / failure metrics here.
+    def __attributes(self) -> Attributes:
+        attr: Attributes = {
+            "client_id": self.__stanza_config.client_id,
+            "customer_id": str(self.__stanza_config.customer_id or ""),
+            "environment": str(self.__stanza_config.environment or ""),
+            "guard": self.__guard_name,
+            "feature": str(self.__feature_name or ""),
+            "service": str(self.__stanza_config.service_name or ""),
+            "mode": Mode.Name(self.__mode),
+            "config_state": Config.Name(self.__config_status),
+            "local_reason": Local.Name(self.__local_status),
+            "token_reason": Token.Name(self.__token_status),
+            "quota_reason": Quota.Name(self.__quota_status),
+        }
+        return attr
 
-    def emit_event(self, guard_event: GuardEvent, message: str):
-        """Log any type of guard event to OTEL."""
+    def __emit_event(self, guard_event: GuardEvent, message: str):
+        """Log any type of guard event."""
 
-        logging.debug(f"{message}, %s", repr(self))
+        if message != "":
+            logging.debug(f"{message}, %s", repr(self))
+
+        if self.__otel:
+            if guard_event == GuardEvent.ALLOWED:
+                self.__otel.meter.AllowedCount.add(1, self.__attributes())
+            elif guard_event == GuardEvent.BLOCKED:
+                self.__otel.meter.BlockedCount.add(1, self.__attributes())
+            elif guard_event == GuardEvent.FAILOPEN:
+                self.__otel.meter.FailOpenCount.add(1, self.__attributes())
 
     def __allowed(self):
-        """Log an allowed event to OTEL."""
+        """Log an allowed event."""
 
-        # TODO: OTEL meter (AllowedCount) and trace span
+        self.__emit_event(GuardEvent.ALLOWED, "Stanza allowed")
         self.__start = datetime.datetime.now()
-        self.emit_event(GuardEvent.ALLOWED, "Stanza allowed")
 
     def __blocked(self):
-        """Log a blocked event to OTEL."""
+        """Log a blocked event."""
 
-        # TODO: OTEL meter (BlockedCount) and trace span
-        self.emit_event(GuardEvent.BLOCKED, "Stanza blocked")
+        self.__emit_event(GuardEvent.BLOCKED, "Stanza blocked")
 
-    def __failopen(self, error_message: str):
-        """Log a failopen event to OTEL."""
+    def __failopen(self):
+        """Log a failopen event."""
 
-        # TODO: OTEL meter (FailOpenCount) and trace span
-        self.__error_message = error_message
-        self.emit_event(GuardEvent.FAILOPEN, f"Stanza failed open, {error_message}")
+        self.__emit_event(
+            GuardEvent.FAILOPEN, f"Stanza failed open, {self.__error_message}"
+        )
 
     def __consume_cached_token_lease(self) -> Optional[quota_pb2.TokenLease]:
         """Scans cached leases and finds the first valid and unexpired lease."""
