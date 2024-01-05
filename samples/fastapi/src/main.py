@@ -4,7 +4,7 @@ import logging
 import sys
 
 import requests
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, status
 from getstanza.configuration import StanzaConfiguration
 from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
 

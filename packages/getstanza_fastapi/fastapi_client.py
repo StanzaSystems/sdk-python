@@ -1,5 +1,4 @@
 import inspect
-import logging
 
 from fastapi import Request
 from getstanza.client import StanzaClient
@@ -19,8 +18,10 @@ class StanzaFastAPIClient(StanzaClient):
     def stanza_guard(self, handler):
         """Wrap your FastAPI handler with a Stanza guard."""
 
+        # TODO: Confirm that request bodies pass without issue. Query
+        # parameters and path parameters have already been verified.
+
         handler_parameters = inspect.signature(handler).parameters.values()
-        has_request = any(p.annotation == Request for p in handler_parameters)
 
         # We need to make sure that an argument with type 'fastapi.Request' is
         # passed into the handler so that FastAPI gives us request information
@@ -28,7 +29,7 @@ class StanzaFastAPIClient(StanzaClient):
         # inject it, then return a wrapper that asks for it.
         wrapper = (
             _wrapper_without_request(handler)
-            if has_request
+            if any(p.annotation == Request for p in handler_parameters)
             else _wrapper_with_request(handler)
         )
 
@@ -79,6 +80,8 @@ def _wrapper_without_request(handler):
                 request = kwargs[key]
                 break
 
+        # This should never happen in practice in runtime. This check exists
+        # just to make the type checker happy.
         if request is None:
             raise AttributeError(
                 "Stanza cannot find argument with type 'fastapi.Request' in "
