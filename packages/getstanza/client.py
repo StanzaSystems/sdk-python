@@ -68,16 +68,8 @@ class StanzaClient:
     ) -> Guard:
         """Initialize a guard and fetch its configuration if not cached."""
 
-        (
-            guard_config,
-            guard_config_status,
-        ) = await self.__hub.config_manager.get_guard_config(guard_name)
-
         guard = Guard(
-            self.__hub.quota_service,
-            self.__config,
-            guard_config,
-            guard_config_status,
+            self.__hub,
             guard_name,
             feature_name=feature,
             priority_boost=priority_boost,
