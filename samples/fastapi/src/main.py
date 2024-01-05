@@ -4,9 +4,9 @@ import logging
 import sys
 
 import requests
-from fastapi import FastAPI, HTTPException, status
-from getstanza.client import StanzaClient
+from fastapi import FastAPI, HTTPException, Request, status
 from getstanza.configuration import StanzaConfiguration
+from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
 
 # FastAPI Example Service
 NAME = "fastapi-example"
@@ -23,7 +23,7 @@ logging.info("service init, name:%s, release:%s, env:%s", NAME, RELEASE, ENV)
 
 # Init Stanza fault tolerance library
 try:
-    stanza_client = StanzaClient(
+    stanza_client = StanzaFastAPIClient(
         StanzaConfiguration(
             # api_key="YOUR-API-KEY-HERE",  # or via STANZA_API_KEY environment variable
             service_name=NAME,  # or via STANZA_SERVICE_NAME environment variable
@@ -50,6 +50,7 @@ def health():
 
 
 @app.get("/quote")
+@stanza_client.stanza_guard
 async def quote():
     """Returns a random quote from ZenQuotes using Requests"""
 
