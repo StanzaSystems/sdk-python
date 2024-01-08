@@ -9,6 +9,7 @@ from opentelemetry.sdk.trace.export import (
     ConsoleSpanExporter,
     SpanExporter,
 )
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 from opentelemetry.trace import Tracer
 
 # Constants per Stanza SDK spec
@@ -26,6 +27,7 @@ class StanzaTracerProvider:
         debug: bool,
         insecure: bool,
         resource: Resource,
+        sampler: TraceIdRatioBased,
         endpoint: str,
         headers: Dict[str, str],
     ):
@@ -33,8 +35,7 @@ class StanzaTracerProvider:
             exporter = self.__debug_span_exporter()
         else:
             exporter = self.__grpc_span_exporter(endpoint, insecure, headers)
-
-        self.__provider = TracerProvider(resource=resource)
+        self.__provider = TracerProvider(resource=resource, sampler=sampler)
         self.__provider.add_span_processor(
             BatchSpanProcessor(
                 span_exporter=exporter,

@@ -10,6 +10,7 @@ from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
+from opentelemetry.trace import Span, Status, StatusCode
 from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
 from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
@@ -176,6 +177,7 @@ class Guard:
         self.__guard_config = guard_config
         self.__guard_name = guard_name
         self.__otel = stanza_config.otel
+        self.__span: Optional[Span] = None
         self.__feature_name = feature_name
         self.__priority_boost = 0 if priority_boost is None else priority_boost
         self.__default_weight = 0 if default_weight is None else default_weight
@@ -216,6 +218,10 @@ class Guard:
     async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
 
+        # Start a new OpenTelemetry span (if one doesn't exist yet)
+        if self.__otel and not self.__span:
+            self.__span = self.__otel.tracer.start_span(name="stanza-guard")
+
         try:
             # Config state check
             if not self.__check_config():
@@ -233,6 +239,9 @@ class Guard:
             self.__check_quota()
 
         except Exception as exc:
+            if self.__span:
+                self.__span.record_exception(exc)
+
             if not self.__error_message:
                 template = "an unknown exception of type {0} occurred"
                 self.__error_message = template.format(type(exc).__name__)
@@ -459,6 +468,17 @@ class Guard:
                 self.__otel.meter.BlockedCount.add(1, self.__attributes())
             elif guard_event == GuardEvent.FAILOPEN:
                 self.__otel.meter.FailOpenCount.add(1, self.__attributes())
+
+        if self.__span:
+            if guard_event == GuardEvent.ALLOWED:
+                self.__span.add_event("Stanza allowed", self.__attributes())
+                self.__span.set_status(Status(StatusCode.OK))
+            elif guard_event == GuardEvent.BLOCKED:
+                self.__span.add_event("Stanza blocked", self.__attributes())
+                self.__span.set_status(Status(StatusCode.ERROR), message)
+            elif guard_event == GuardEvent.FAILOPEN:
+                self.__span.add_event("Stanza failed open", self.__attributes())
+                self.__span.set_status(Status(StatusCode.ERROR), message)
 
     def __allowed(self):
         """Log an allowed event."""
