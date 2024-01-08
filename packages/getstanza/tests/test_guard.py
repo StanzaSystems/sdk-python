@@ -122,8 +122,6 @@ async def test_guard_quota_allowed(quota_guard, quota_service):
 
     await quota_guard.run()
 
-    print(quota_guard)
-
     quota_service.GetTokenLease.assert_called_once()
     assert quota_guard.local_status == Local.LOCAL_NOT_SUPPORTED
     assert quota_guard.token_status == Token.TOKEN_EVAL_DISABLED
