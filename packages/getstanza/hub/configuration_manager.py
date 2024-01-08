@@ -111,7 +111,7 @@ class StanzaHubConfigurationManager:
                 service_config_response.version,
             )
 
-            # TODO: reconnect OTEL if metric or trace collector_url has changed
+            # TODO: reconnect OTEL if config has changed
             if not self.config.otel:
                 bearer_token = await self.fetch_otel_bearer_token()
                 if bearer_token:
