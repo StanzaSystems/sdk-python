@@ -63,6 +63,7 @@ class StanzaClient:
         guard_name: str,
         feature: Optional[str] = None,
         priority_boost: Optional[int] = None,
+        default_weight: Optional[float] = None,
         tags=None,
     ) -> Guard:
         """Initialize a guard and fetch its configuration if not cached."""
@@ -80,6 +81,7 @@ class StanzaClient:
             guard_name,
             feature_name=feature,
             priority_boost=priority_boost,
+            default_weight=default_weight,
             tags=tags,
         )
         await guard.run()
