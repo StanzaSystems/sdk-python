@@ -18,8 +18,7 @@ def config_manager(stanza_config):
     with patch("getstanza.hub.StanzaHubConfigurationManager") as MockClass:
         instance = MockClass.return_value
         instance.config = stanza_config
-        instance.__guard_configs = {}
-        # instance.__config_status = None
+        instance.get_guard_config.return_value = None
 
         yield instance
 
