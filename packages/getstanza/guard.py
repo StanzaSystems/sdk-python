@@ -10,7 +10,6 @@ from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
-from getstanza.otel import OpenTelemetry
 from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
 from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
@@ -165,7 +164,6 @@ class Guard:
         guard_config: Optional[config_pb2.GuardConfig],
         guard_config_status: Config,
         guard_name: str,
-        otel: Optional[OpenTelemetry] = None,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
@@ -177,7 +175,7 @@ class Guard:
         self.__stanza_config = stanza_config
         self.__guard_config = guard_config
         self.__guard_name = guard_name
-        self.__otel = otel
+        self.__otel = stanza_config.otel
         self.__feature_name = feature_name
         self.__priority_boost = 0 if priority_boost is None else priority_boost
         self.__default_weight = 0 if default_weight is None else default_weight

@@ -78,7 +78,6 @@ class StanzaClient:
             guard_config,
             guard_config_status,
             guard_name,
-            otel=self.__config.otel,
             feature_name=feature,
             priority_boost=priority_boost,
             tags=tags,
