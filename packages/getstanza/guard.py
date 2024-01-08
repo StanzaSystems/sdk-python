@@ -176,7 +176,6 @@ class Guard:
         self.__stanza_config = stanza_config
         self.__guard_config = guard_config
         self.__guard_name = guard_name
-        self.__otel = stanza_config.otel
         self.__feature_name = feature_name
         self.__priority_boost = 0 if priority_boost is None else priority_boost
         self.__default_weight = 0 if default_weight is None else default_weight
@@ -217,9 +216,13 @@ class Guard:
     async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
 
-        # Start a new OpenTelemetry span
-        if self.__otel:
-            self.__span = self.__otel.tracer.start_span("stanza-guard")
+        if self.__stanza_config.otel:
+            if self.__stanza_config.otel.meter:
+                self.__meter = self.__stanza_config.otel.meter
+            if self.__stanza_config.otel.tracer:
+                self.__span = self.__stanza_config.otel.tracer.start_span(
+                    "stanza-guard"
+                )
 
         try:
             # Config state check
@@ -426,20 +429,18 @@ class Guard:
 
     def end(self, status: GuardedStatus):
         """Called when the guarded logic comes to an end."""
-        if self.__otel:
+        if self.__meter:
             if self.__start:
                 duration_ms = (
                     datetime.datetime.now() - self.__start
                 ) / datetime.timedelta(milliseconds=1)
-                self.__otel.meter.AllowedDuration.record(
-                    duration_ms, self.__attributes()
-                )
+                self.__meter.AllowedDuration.record(duration_ms, self.__attributes())
             if status == GuardedStatus.GUARDED_SUCCESS:
-                self.__otel.meter.AllowedSuccessCount.add(1, self.__attributes())
+                self.__meter.AllowedSuccessCount.add(1, self.__attributes())
             elif status == GuardedStatus.GUARDED_FAILURE:
-                self.__otel.meter.AllowedFailureCount.add(1, self.__attributes())
+                self.__meter.AllowedFailureCount.add(1, self.__attributes())
             else:
-                self.__otel.meter.AllowedUnknownCount.add(1, self.__attributes())
+                self.__meter.AllowedUnknownCount.add(1, self.__attributes())
 
     def __attributes(self) -> Attributes:
         attr: Attributes = {
@@ -463,13 +464,13 @@ class Guard:
         if message != "":
             logging.debug(f"{message}, %s", repr(self))
 
-        if self.__otel:
+        if self.__meter:
             if guard_event == GuardEvent.ALLOWED:
-                self.__otel.meter.AllowedCount.add(1, self.__attributes())
+                self.__meter.AllowedCount.add(1, self.__attributes())
             elif guard_event == GuardEvent.BLOCKED:
-                self.__otel.meter.BlockedCount.add(1, self.__attributes())
+                self.__meter.BlockedCount.add(1, self.__attributes())
             elif guard_event == GuardEvent.FAILOPEN:
-                self.__otel.meter.FailOpenCount.add(1, self.__attributes())
+                self.__meter.FailOpenCount.add(1, self.__attributes())
 
         if self.__span:
             if guard_event == GuardEvent.ALLOWED:
