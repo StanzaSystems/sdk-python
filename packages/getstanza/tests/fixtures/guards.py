@@ -2,17 +2,18 @@ from typing import Optional
 from unittest.mock import patch
 
 import pytest
-from getstanza.configuration import StanzaConfiguration
 from getstanza.guard import Guard
+from getstanza.hub import StanzaHub
 from getstanza.tests.utils import async_noop, noop
-from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2_grpc
+from stanza.hub.v1 import common_pb2, config_pb2
 
 
 def make_guard(
-    quota_service: quota_pb2_grpc.QuotaServiceStub,
-    stanza_config: StanzaConfiguration,
-    guard_config: Optional[config_pb2.GuardConfig],
-    guard_config_status: common_pb2.Config,
+    # quota_service: quota_pb2_grpc.QuotaServiceStub,
+    # stanza_config: StanzaConfiguration,
+    # guard_config: Optional[config_pb2.GuardConfig],
+    # guard_config_status: common_pb2.Config,
+    hub: StanzaHub,
     guard_name: str,
     feature_name: Optional[str] = None,
     priority_boost: Optional[int] = None,
@@ -24,17 +25,16 @@ def make_guard(
     with (
         patch("getstanza.guard.batch_token_consumer_task") as batch_token_consumer_task,
         patch("getstanza.guard.batch_token_consumer") as batch_token_consumer,
-        patch("getstanza.guard.handle_batch_token_consumer") as handle_batch_token_consumer,
+        patch(
+            "getstanza.guard.handle_batch_token_consumer"
+        ) as handle_batch_token_consumer,
     ):
         batch_token_consumer_task.return_value = async_noop
         batch_token_consumer.return_value = async_noop
         handle_batch_token_consumer.return_value = noop
 
         guard = Guard(
-            quota_service,
-            stanza_config,
-            guard_config,
-            guard_config_status,
+            hub,
             guard_name,
             feature_name=feature_name,
             priority_boost=priority_boost,
@@ -56,12 +56,13 @@ def quota_guard_config():
 
 
 @pytest.fixture
-def quota_guard(stanza_config, quota_guard_config, quota_service):
+def quota_guard(stanza_hub, quota_guard_config, quota_service):
+    hub = stanza_hub
+    hub.config_manager.__guard_configs = quota_guard_config
+    # hub.config_manager.__config_status = common_pb2.Config.CONFIG_CACHED_OK
+    hub.quota_service = quota_service
     return make_guard(
-        quota_service,
-        stanza_config,
-        quota_guard_config,
-        common_pb2.Config.CONFIG_CACHED_OK,
+        hub,
         "QuotaGuard",
         feature_name=None,
         priority_boost=0,

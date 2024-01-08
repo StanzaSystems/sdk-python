@@ -260,11 +260,16 @@ class Guard:
     async def __check_config(self) -> bool:
         """Check guard configuration."""
 
+        print("1111111111111111111")
         if self.__guard_config is None:
             (
                 self.__guard_config,
                 self.__config_status,
             ) = await self.__config_manager.get_guard_config(self.__guard_name)
+        print("222222222222222222222")
+        print(self.__guard_config)
+        print(self.__config_status)
+        print("33333333333333333")
 
         if self.__guard_config is not None:
             if self.__guard_config.report_only:
