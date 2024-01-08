@@ -214,11 +214,11 @@ class Guard:
     async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
 
-        if self.__stanza_config.otel:
-            if self.__stanza_config.otel.meter:
-                self.__meter = self.__stanza_config.otel.meter
-            if self.__stanza_config.otel.tracer:
-                self.__span = self.__stanza_config.otel.tracer.start_span(
+        if self.__client_config.otel:
+            if self.__client_config.otel.meter:
+                self.__meter = self.__client_config.otel.meter
+            if self.__client_config.otel.tracer:
+                self.__span = self.__client_config.otel.tracer.start_span(
                     "stanza-guard"
                 )
 
