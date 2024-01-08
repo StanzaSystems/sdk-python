@@ -10,7 +10,7 @@ from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
-from opentelemetry.metrics import Meter
+from getstanza.otel import StanzaMeter
 from opentelemetry.trace import Span, Status, StatusCode
 from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
@@ -182,9 +182,8 @@ class Guard:
         self.__default_weight = 0 if default_weight is None else default_weight
         self.__tags = tags
 
-        self.__meter: Optional[Meter] = None
+        self.__meter: Optional[StanzaMeter] = None
         self.__span: Optional[Span] = None
-
         self.__quota_token: Optional[str] = None
         self.__error_message: Optional[str] = None
         self.__start: Optional[datetime.datetime] = None
