@@ -314,7 +314,7 @@ class Guard:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            self.__error_message = "{}".format(str(rpc_error))
+            self.__error_message = str(rpc_error)
             self.__token_status = Token.TOKEN_VALIDATION_ERROR
             return False
 
@@ -372,7 +372,7 @@ class Guard:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            self.__error_message = "{}".format(str(rpc_error))
+            self.__error_message = str(rpc_error)
             self.__quota_status = Quota.QUOTA_ERROR
             return False
 
