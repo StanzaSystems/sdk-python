@@ -190,6 +190,11 @@ class Guard:
                 batch_token_consumer_task = loop.create_task(batch_token_consumer())
                 batch_token_consumer_task.add_done_callback(handle_batch_token_consumer)
 
+                logging.debug(
+                    "STARTED NEW BATCH TOKEN CONSUMER on loop: %s",
+                    threading.get_ident(),
+                )
+
     def __repr__(self) -> str:
         """Returns all of the current status state of the guard."""
 
@@ -624,6 +629,8 @@ async def batch_token_consumer():
             tasks.append(
                 asyncio.ensure_future(set_token_lease_consumed(leases, environment))  # type: ignore
             )
+
+        logging.debug("CONSUMED leases on loop: %s", threading.get_ident())
 
         if len(tasks) > 0:
             await asyncio.wait(tasks)
