@@ -78,7 +78,7 @@ class StanzaHubConfigurationManager:
             )
             return bearer_token_response.bearer_token
         except grpc.RpcError as rpc_error:
-            logging.debug("{}".format(str(rpc_error)))
+            logging.debug(str(rpc_error))
             return ""
 
     async def connect_otel(self):
@@ -122,7 +122,7 @@ class StanzaHubConfigurationManager:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            logging.debug("{}".format(str(rpc_error)))
+            logging.debug(str(rpc_error))
             return
 
         if service_config_response.config_data_sent:
@@ -174,7 +174,7 @@ class StanzaHubConfigurationManager:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            logging.debug("{}".format(str(rpc_error)))
+            logging.debug(str(rpc_error))
             return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCH_ERROR
 
         if guard_config_response.config_data_sent:
