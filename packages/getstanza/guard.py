@@ -10,6 +10,8 @@ from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.configuration import StanzaConfiguration
+from getstanza.otel import StanzaMeter
+from opentelemetry.trace import Span, Status, StatusCode
 from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
 from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
@@ -175,12 +177,13 @@ class Guard:
         self.__stanza_config = stanza_config
         self.__guard_config = guard_config
         self.__guard_name = guard_name
-        self.__otel = stanza_config.otel
         self.__feature_name = feature_name
         self.__priority_boost = 0 if priority_boost is None else priority_boost
         self.__default_weight = 0 if default_weight is None else default_weight
         self.__tags = tags
 
+        self.__meter: Optional[StanzaMeter] = None
+        self.__span: Optional[Span] = None
         self.__quota_token: Optional[str] = None
         self.__error_message: Optional[str] = None
         self.__start: Optional[datetime.datetime] = None
@@ -216,6 +219,14 @@ class Guard:
     async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
 
+        if self.__stanza_config.otel:
+            if self.__stanza_config.otel.meter:
+                self.__meter = self.__stanza_config.otel.meter
+            if self.__stanza_config.otel.tracer:
+                self.__span = self.__stanza_config.otel.tracer.start_span(
+                    "stanza-guard"
+                )
+
         try:
             # Config state check
             if not self.__check_config():
@@ -233,6 +244,9 @@ class Guard:
             self.__check_quota()
 
         except Exception as exc:
+            if self.__span:
+                self.__span.record_exception(exc)
+
             if not self.__error_message:
                 template = "an unknown exception of type {0} occurred"
                 self.__error_message = template.format(type(exc).__name__)
@@ -244,6 +258,9 @@ class Guard:
                 self.__allowed()
             else:
                 self.__blocked()
+
+            if self.__span:
+                self.__span.end()
 
     def __check_config(self) -> bool:
         """Check guard configuration."""
@@ -297,7 +314,7 @@ class Guard:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            self.__error_message = "{}".format(str(rpc_error))
+            self.__error_message = str(rpc_error)
             self.__token_status = Token.TOKEN_VALIDATION_ERROR
             return False
 
@@ -355,7 +372,7 @@ class Guard:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            self.__error_message = "{}".format(str(rpc_error))
+            self.__error_message = str(rpc_error)
             self.__quota_status = Quota.QUOTA_ERROR
             return False
 
@@ -415,20 +432,18 @@ class Guard:
 
     def end(self, status: GuardedStatus):
         """Called when the guarded logic comes to an end."""
-        if self.__otel:
+        if self.__meter:
             if self.__start:
                 duration_ms = (
                     datetime.datetime.now() - self.__start
                 ) / datetime.timedelta(milliseconds=1)
-                self.__otel.meter.AllowedDuration.record(
-                    duration_ms, self.__attributes()
-                )
+                self.__meter.AllowedDuration.record(duration_ms, self.__attributes())
             if status == GuardedStatus.GUARDED_SUCCESS:
-                self.__otel.meter.AllowedSuccessCount.add(1, self.__attributes())
+                self.__meter.AllowedSuccessCount.add(1, self.__attributes())
             elif status == GuardedStatus.GUARDED_FAILURE:
-                self.__otel.meter.AllowedFailureCount.add(1, self.__attributes())
+                self.__meter.AllowedFailureCount.add(1, self.__attributes())
             else:
-                self.__otel.meter.AllowedUnknownCount.add(1, self.__attributes())
+                self.__meter.AllowedUnknownCount.add(1, self.__attributes())
 
     def __attributes(self) -> Attributes:
         attr: Attributes = {
@@ -452,13 +467,24 @@ class Guard:
         if message != "":
             logging.debug(f"{message}, %s", repr(self))
 
-        if self.__otel:
+        if self.__meter:
             if guard_event == GuardEvent.ALLOWED:
-                self.__otel.meter.AllowedCount.add(1, self.__attributes())
+                self.__meter.AllowedCount.add(1, self.__attributes())
             elif guard_event == GuardEvent.BLOCKED:
-                self.__otel.meter.BlockedCount.add(1, self.__attributes())
+                self.__meter.BlockedCount.add(1, self.__attributes())
             elif guard_event == GuardEvent.FAILOPEN:
-                self.__otel.meter.FailOpenCount.add(1, self.__attributes())
+                self.__meter.FailOpenCount.add(1, self.__attributes())
+
+        if self.__span:
+            if guard_event == GuardEvent.ALLOWED:
+                self.__span.add_event("Stanza allowed", self.__attributes())
+                self.__span.set_status(Status(StatusCode.OK))
+            elif guard_event == GuardEvent.BLOCKED:
+                self.__span.add_event("Stanza blocked", self.__attributes())
+                self.__span.set_status(Status(StatusCode.ERROR), message)
+            elif guard_event == GuardEvent.FAILOPEN:
+                self.__span.add_event("Stanza failed open", self.__attributes())
+                self.__span.set_status(Status(StatusCode.ERROR), message)
 
     def __allowed(self):
         """Log an allowed event."""

@@ -4,6 +4,7 @@ import os
 from getstanza.otel.meter import StanzaMeter, StanzaMeterProvider
 from getstanza.otel.tracer import StanzaTracerProvider
 from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 from opentelemetry.trace import Tracer
 
 INSTRUMENTATION_NAME = "github.com/StanzaSystems/sdk-python"
@@ -26,6 +27,7 @@ class OpenTelemetry:
         bearer_token: str,
         metric_collector_url: str,
         trace_collector_url: str,
+        trace_sample_rate: float,
         service_name: str,
         service_release: str,
         environment: str,
@@ -34,6 +36,7 @@ class OpenTelemetry:
         self.__insecure = False
         self.__metric_collector_url = metric_collector_url
         self.__trace_collector_url = trace_collector_url
+        self.__trace_sample_rate = trace_sample_rate
 
         if os.environ.get("STANZA_OTEL_DEBUG"):
             self.__debug = True
@@ -81,6 +84,7 @@ class OpenTelemetry:
                 insecure=self.__insecure,
                 resource=self.__resource,
                 endpoint=self.__trace_collector_url,
+                sampler=TraceIdRatioBased(self.__trace_sample_rate),
                 headers={"authorization": "Bearer " + self.__bearer_token},
             )
             self.__tracer = self.__trace_provider.get_tracer(

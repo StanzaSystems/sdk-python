@@ -73,7 +73,7 @@ class StanzaHubConfigurationManager:
             )
             return bearer_token_response.bearer_token
         except grpc.RpcError as rpc_error:
-            logging.debug(rpc_error.debug_error_string())  # type: ignore
+            logging.debug(str(rpc_error))
             return ""
 
     async def fetch_service_config(self):
@@ -98,7 +98,7 @@ class StanzaHubConfigurationManager:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            logging.debug(rpc_error.debug_error_string())  # type: ignore
+            logging.debug(str(rpc_error))
             return
 
         if service_config_response.config_data_sent:
@@ -111,7 +111,7 @@ class StanzaHubConfigurationManager:
                 service_config_response.version,
             )
 
-            # TODO: reconnect OTEL if metric or trace collector_url has changed
+            # TODO: reconnect OTEL if config has changed
             if not self.config.otel:
                 bearer_token = await self.fetch_otel_bearer_token()
                 if bearer_token:
@@ -119,6 +119,7 @@ class StanzaHubConfigurationManager:
                         bearer_token=bearer_token,
                         metric_collector_url=service_config_response.config.metric_config.collector_url,
                         trace_collector_url=service_config_response.config.trace_config.collector_url,
+                        trace_sample_rate=service_config_response.config.trace_config.sample_rate_default,
                         service_name=str(self.config.service_name or ""),
                         service_release=str(self.config.service_release or ""),
                         environment=str(self.config.environment or ""),
@@ -153,7 +154,7 @@ class StanzaHubConfigurationManager:
                 ),
             )
         except grpc.RpcError as rpc_error:
-            logging.debug(rpc_error.debug_error_string())  # type: ignore
+            logging.debug(str(rpc_error))
             return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCH_ERROR
 
         if guard_config_response.config_data_sent:
