@@ -11,7 +11,7 @@ from typing import Iterable, Optional, cast
 import grpc
 from getstanza.hub import StanzaHub
 from getstanza.otel import StanzaMeter
-from opentelemetry.trace import Span, Status, StatusCode
+from opentelemetry.trace import Span, StatusCode
 from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2
 from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
@@ -485,13 +485,13 @@ class Guard:
         if self.__span:
             if guard_event == GuardEvent.ALLOWED:
                 self.__span.add_event("Stanza allowed", self.__attributes())
-                self.__span.set_status(Status(StatusCode.OK))
+                self.__span.set_status(StatusCode.OK)
             elif guard_event == GuardEvent.BLOCKED:
                 self.__span.add_event("Stanza blocked", self.__attributes())
-                self.__span.set_status(Status(StatusCode.ERROR), message)
+                self.__span.set_status(StatusCode.ERROR, message)
             elif guard_event == GuardEvent.FAILOPEN:
                 self.__span.add_event("Stanza failed open", self.__attributes())
-                self.__span.set_status(Status(StatusCode.ERROR), message)
+                self.__span.set_status(StatusCode.ERROR, message)
 
     def __allowed(self):
         """Log an allowed event."""
