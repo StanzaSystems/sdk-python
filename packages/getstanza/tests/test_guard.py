@@ -34,6 +34,7 @@ def setup_and_teardown():
 def test_guard_allows_default(quota_guard):
     """Check that an unevaluated guard does not block by default."""
 
+    assert quota_guard.guard_config is None
     assert quota_guard.allowed()
 
 
@@ -47,6 +48,7 @@ async def test_guard_allows_when_config_null(quota_service, guard_without_config
     assert guard_without_config.local_status == Local.LOCAL_NOT_EVAL
     assert guard_without_config.token_status == Token.TOKEN_NOT_EVAL
     assert guard_without_config.quota_status == Quota.QUOTA_NOT_EVAL
+    assert guard_without_config.error is not None
     assert guard_without_config.allowed()
 
 
@@ -101,6 +103,14 @@ async def test_guard_blocks_when_config_not_found(
 
 
 @pytest.mark.asyncio
+async def test_guard_quota_end(quota_guard):
+    await quota_guard.run()
+    quota_guard.end(0)
+    quota_guard.end(quota_guard.success)
+    quota_guard.end(quota_guard.failure)
+
+
+@pytest.mark.asyncio
 async def test_guard_quota_allowed(quota_guard, quota_service):
     """Check that quota allowing works in a simple use case."""
 
@@ -121,11 +131,15 @@ async def test_guard_quota_allowed(quota_guard, quota_service):
     )
 
     await quota_guard.run()
+    quota_guard.end(quota_guard.success)
 
     quota_service.GetTokenLease.assert_called_once()
     assert quota_guard.local_status == Local.LOCAL_NOT_SUPPORTED
     assert quota_guard.token_status == Token.TOKEN_EVAL_DISABLED
     assert quota_guard.quota_status == Quota.QUOTA_GRANTED
+    assert quota_guard.quota_token is not None
+    assert quota_guard.block_message is None
+    assert quota_guard.block_reason is None
     assert quota_guard.allowed()
 
 
@@ -144,6 +158,10 @@ async def test_guard_quota_blocked(quota_guard, quota_service):
     assert quota_guard.local_status == Local.LOCAL_NOT_SUPPORTED
     assert quota_guard.token_status == Token.TOKEN_EVAL_DISABLED
     assert quota_guard.quota_status == Quota.QUOTA_BLOCKED
+    assert (
+        quota_guard.block_message == "Stanza quota exhausted. Please try again later."
+    )
+    assert quota_guard.block_reason == "QUOTA_BLOCKED"
     assert quota_guard.blocked()
 
 
@@ -238,6 +256,23 @@ async def test_guard_invalid_ingress_token(token_guard, quota_service):
 
     quota_service.GetTokenLease.assert_not_called()
     quota_service.ValidateToken.assert_called_once()
+
+    assert token_guard.local_status == Local.LOCAL_NOT_SUPPORTED
+    assert token_guard.token_status == Token.TOKEN_NOT_VALID
+    assert token_guard.quota_status == Quota.QUOTA_NOT_EVAL
+    assert token_guard.block_message == "Invalid or expired X-Stanza-Token."
+    assert token_guard.block_reason == "TOKEN_NOT_VALID"
+    assert token_guard.blocked()
+
+
+@pytest.mark.asyncio
+async def test_guard_missing_ingress_token(token_guard, quota_service):
+    """It should block missing token before proceeding with execution."""
+
+    await token_guard.run()
+
+    quota_service.GetTokenLease.assert_not_called()
+    quota_service.ValidateToken.assert_not_called()
 
     assert token_guard.local_status == Local.LOCAL_NOT_SUPPORTED
     assert token_guard.token_status == Token.TOKEN_NOT_VALID

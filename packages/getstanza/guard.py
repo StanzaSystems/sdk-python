@@ -90,15 +90,15 @@ class Guard:
         return self.__quota_status
 
     @property
-    def quota_token(self) -> Optional[str]:
+    def quota_token(self):
         return self.__quota_token
 
     @property
-    def guard_config(self) -> Optional[config_pb2.GuardConfig]:
+    def guard_config(self):
         return self.__guard_config
 
     @property
-    def error(self) -> Optional[str]:
+    def error(self):
         """If there was an error, return the message as a string."""
 
         return self.__error_message
