@@ -133,16 +133,6 @@ class Guard:
 
         return None
 
-    @guard_config.setter
-    def guard_config(self, value):
-        if self.__guard_config is not None:
-            raise AttributeError(
-                f"Guard '{self.__guard_name}' has already been initialized "
-                f"with a configuration.",
-            )
-
-        self.__guard_config = value
-
     @property
     def __cached_lease_key(self):
         """Returns the cache key needed to find cached leases for the guard."""
