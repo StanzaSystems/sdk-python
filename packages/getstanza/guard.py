@@ -9,11 +9,11 @@ from enum import Enum
 from typing import Iterable, Optional, cast
 
 import grpc
-from getstanza.configuration import StanzaConfiguration
+from getstanza.hub import StanzaHub
 from getstanza.otel import StanzaMeter
-from opentelemetry.trace import Span, Status, StatusCode
+from opentelemetry.trace import Span, StatusCode
 from opentelemetry.util.types import Attributes
-from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2, quota_pb2_grpc
+from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2
 from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
 
 # Definition for the 200ms deadline for communicated consumed tokens to Hub.
@@ -90,15 +90,15 @@ class Guard:
         return self.__quota_status
 
     @property
-    def quota_token(self) -> Optional[str]:
+    def quota_token(self):
         return self.__quota_token
 
     @property
-    def guard_config(self) -> Optional[config_pb2.GuardConfig]:
+    def guard_config(self):
         return self.__guard_config
 
     @property
-    def error(self) -> Optional[str]:
+    def error(self):
         """If there was an error, return the message as a string."""
 
         return self.__error_message
@@ -133,22 +133,12 @@ class Guard:
 
         return None
 
-    @guard_config.setter
-    def guard_config(self, value):
-        if self.__guard_config is not None:
-            raise AttributeError(
-                f"Guard '{self.__guard_name}' has already been initialized "
-                f"with a configuration.",
-            )
-
-        self.__guard_config = value
-
     @property
     def __cached_lease_key(self):
         """Returns the cache key needed to find cached leases for the guard."""
 
         return (
-            cast(str, self.__stanza_config.environment),
+            str(self.__client_config.environment or ""),
             self.__guard_name,
             self.__feature_name,
         )
@@ -157,14 +147,11 @@ class Guard:
     def __consumed_lease_key(self):
         """Returns the key needed to group consumed leases by env."""
 
-        return cast(str, self.__stanza_config.environment)
+        return str(self.__client_config.environment or "")
 
     def __init__(
         self,
-        quota_service: quota_pb2_grpc.QuotaServiceStub,
-        stanza_config: StanzaConfiguration,
-        guard_config: Optional[config_pb2.GuardConfig],
-        guard_config_status: Config,
+        hub: StanzaHub,
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
@@ -173,27 +160,25 @@ class Guard:
     ):
         global batch_token_consumer_task
 
-        self.__quota_service = quota_service
-        self.__stanza_config = stanza_config
-        self.__guard_config = guard_config
         self.__guard_name = guard_name
         self.__feature_name = feature_name
         self.__priority_boost = 0 if priority_boost is None else priority_boost
         self.__default_weight = 0 if default_weight is None else default_weight
         self.__tags = tags
 
+        self.__quota_service = hub.quota_service
+        self.__config_manager = hub.config_manager
+        self.__client_config = hub.config_manager.config
+
         self.__meter: Optional[StanzaMeter] = None
         self.__span: Optional[Span] = None
+        self.__start: Optional[datetime.datetime] = None
         self.__quota_token: Optional[str] = None
         self.__error_message: Optional[str] = None
-        self.__start: Optional[datetime.datetime] = None
+        self.__guard_config: Optional[config_pb2.GuardConfig] = None
 
-        self.__mode = (
-            Mode.MODE_REPORT_ONLY
-            if self.__guard_config and self.__guard_config.report_only
-            else Mode.MODE_NORMAL
-        )
-        self.__config_status = guard_config_status
+        self.__mode = Mode.MODE_NORMAL
+        self.__config_status = Config.CONFIG_UNSPECIFIED
         self.__local_status = Local.LOCAL_NOT_EVAL
         self.__token_status = Token.TOKEN_NOT_EVAL
         self.__quota_status = Quota.QUOTA_NOT_EVAL
@@ -219,17 +204,17 @@ class Guard:
     async def run(self, tokens: Optional[Iterable[str]] = None):
         """Run all guard checks and update guard statuses."""
 
-        if self.__stanza_config.otel:
-            if self.__stanza_config.otel.meter:
-                self.__meter = self.__stanza_config.otel.meter
-            if self.__stanza_config.otel.tracer:
-                self.__span = self.__stanza_config.otel.tracer.start_span(
+        if self.__config_manager.otel:
+            if self.__config_manager.otel.meter:
+                self.__meter = self.__config_manager.otel.meter
+            if self.__config_manager.otel.tracer:
+                self.__span = self.__config_manager.otel.tracer.start_span(
                     "stanza-guard"
                 )
 
         try:
             # Config state check
-            if not self.__check_config():
+            if not await self.__check_config():
                 return
 
             # Local rules check
@@ -262,16 +247,28 @@ class Guard:
             if self.__span:
                 self.__span.end()
 
-    def __check_config(self) -> bool:
+    async def __check_config(self) -> bool:
         """Check guard configuration."""
-        if self.__guard_config is not None and (
-            self.__config_status == Config.CONFIG_CACHED_OK
-            or self.__config_status == Config.CONFIG_FETCHED_OK
-        ):
-            return True
-        else:
-            self.__error_message = "unable to fetch guard config"
-            return False
+
+        if self.__guard_config is None:
+            (
+                self.__guard_config,
+                self.__config_status,
+            ) = await self.__config_manager.get_guard_config(self.__guard_name)
+
+        if self.__guard_config is not None:
+            if self.__guard_config.report_only:
+                self.__mode = Mode.MODE_REPORT_ONLY
+            if (
+                self.__config_status == Config.CONFIG_CACHED_OK
+                or self.__config_status == Config.CONFIG_FETCHED_OK
+            ):
+                return True
+
+        self.__error_message = "unable to fetch guard config: {}".format(
+            Config.Name(self.__config_status)
+        )
+        return False
 
     def __check_local(self) -> bool:
         """Local check is not currently supported by this SDK."""
@@ -295,7 +292,7 @@ class Guard:
                 lambda token: quota_pb2.TokenInfo(
                     token=token,
                     guard=common_pb2.GuardSelector(
-                        environment=self.__stanza_config.environment,
+                        environment=self.__client_config.environment,
                         name=self.__guard_name,
                     ),
                 ),
@@ -310,7 +307,7 @@ class Guard:
                 quota_pb2.ValidateTokenResponse,
                 self.__quota_service.ValidateToken(
                     request=quota_pb2.ValidateTokenRequest(tokens=tokens_info),
-                    metadata=self.__stanza_config.metadata,
+                    metadata=self.__client_config.metadata,
                 ),
             )
         except grpc.RpcError as rpc_error:
@@ -343,12 +340,12 @@ class Guard:
 
         token_lease_request = quota_pb2.GetTokenLeaseRequest(
             selector=common_pb2.GuardFeatureSelector(
-                environment=self.__stanza_config.environment,
+                environment=self.__client_config.environment,
                 guard_name=self.__guard_name,
                 feature_name=self.__feature_name,
                 tags=[],
             ),
-            client_id=self.__stanza_config.client_id,
+            client_id=self.__client_config.client_id,
             priority_boost=self.__priority_boost,
             default_weight=self.__default_weight,
         )
@@ -357,7 +354,7 @@ class Guard:
             logging.debug(
                 "Requesting a token lease with selector: "
                 "(environment = %s, guard = %s, feature = %s, priority boost = %s, default weight = %s)",
-                self.__stanza_config.environment,
+                self.__client_config.environment,
                 self.__guard_name,
                 self.__feature_name,
                 self.__priority_boost,
@@ -368,7 +365,7 @@ class Guard:
                 quota_pb2.GetTokenLeaseResponse,
                 self.__quota_service.GetTokenLease(
                     request=token_lease_request,
-                    metadata=self.__stanza_config.metadata,
+                    metadata=self.__client_config.metadata,
                 ),
             )
         except grpc.RpcError as rpc_error:
@@ -447,12 +444,12 @@ class Guard:
 
     def __attributes(self) -> Attributes:
         attr: Attributes = {
-            "client_id": self.__stanza_config.client_id,
-            "customer_id": str(self.__stanza_config.customer_id or ""),
-            "environment": str(self.__stanza_config.environment or ""),
+            "client_id": self.__client_config.client_id,
+            "customer_id": str(self.__client_config.customer_id or ""),
+            "environment": str(self.__client_config.environment or ""),
             "guard": self.__guard_name,
             "feature": str(self.__feature_name or ""),
-            "service": str(self.__stanza_config.service_name or ""),
+            "service": str(self.__client_config.service_name or ""),
             "mode": Mode.Name(self.__mode),
             "config_state": Config.Name(self.__config_status),
             "local_reason": Local.Name(self.__local_status),
@@ -478,13 +475,13 @@ class Guard:
         if self.__span:
             if guard_event == GuardEvent.ALLOWED:
                 self.__span.add_event("Stanza allowed", self.__attributes())
-                self.__span.set_status(Status(StatusCode.OK))
+                self.__span.set_status(StatusCode.OK)
             elif guard_event == GuardEvent.BLOCKED:
                 self.__span.add_event("Stanza blocked", self.__attributes())
-                self.__span.set_status(Status(StatusCode.ERROR), message)
+                self.__span.set_status(StatusCode.ERROR, message)
             elif guard_event == GuardEvent.FAILOPEN:
                 self.__span.add_event("Stanza failed open", self.__attributes())
-                self.__span.set_status(Status(StatusCode.ERROR), message)
+                self.__span.set_status(StatusCode.ERROR, message)
 
     def __allowed(self):
         """Log an allowed event."""

@@ -2,17 +2,14 @@ from typing import Optional
 from unittest.mock import patch
 
 import pytest
-from getstanza.configuration import StanzaConfiguration
 from getstanza.guard import Guard
-from getstanza.tests.utils import async_noop, noop
-from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2_grpc
+from getstanza.hub import StanzaHub
+from getstanza.tests.utils import async_noop, async_return, noop
+from stanza.hub.v1 import common_pb2, config_pb2
 
 
 def make_guard(
-    quota_service: quota_pb2_grpc.QuotaServiceStub,
-    stanza_config: StanzaConfiguration,
-    guard_config: Optional[config_pb2.GuardConfig],
-    guard_config_status: common_pb2.Config,
+    hub: StanzaHub,
     guard_name: str,
     feature_name: Optional[str] = None,
     priority_boost: Optional[int] = None,
@@ -24,17 +21,16 @@ def make_guard(
     with (
         patch("getstanza.guard.batch_token_consumer_task") as batch_token_consumer_task,
         patch("getstanza.guard.batch_token_consumer") as batch_token_consumer,
-        patch("getstanza.guard.handle_batch_token_consumer") as handle_batch_token_consumer,
+        patch(
+            "getstanza.guard.handle_batch_token_consumer"
+        ) as handle_batch_token_consumer,
     ):
         batch_token_consumer_task.return_value = async_noop
         batch_token_consumer.return_value = async_noop
         handle_batch_token_consumer.return_value = noop
 
         guard = Guard(
-            quota_service,
-            stanza_config,
-            guard_config,
-            guard_config_status,
+            hub,
             guard_name,
             feature_name=feature_name,
             priority_boost=priority_boost,
@@ -56,12 +52,12 @@ def quota_guard_config():
 
 
 @pytest.fixture
-def quota_guard(stanza_config, quota_guard_config, quota_service):
+def quota_guard(stanza_hub, quota_guard_config):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (quota_guard_config, common_pb2.Config.CONFIG_CACHED_OK)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        quota_guard_config,
-        common_pb2.Config.CONFIG_CACHED_OK,
+        stanza_hub,
         "QuotaGuard",
         feature_name=None,
         priority_boost=0,
@@ -70,12 +66,12 @@ def quota_guard(stanza_config, quota_guard_config, quota_service):
 
 
 @pytest.fixture
-def quota_guard_with_feature(stanza_config, quota_guard_config, quota_service):
+def quota_guard_with_feature(stanza_hub, quota_guard_config):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (quota_guard_config, common_pb2.Config.CONFIG_CACHED_OK)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        quota_guard_config,
-        common_pb2.Config.CONFIG_CACHED_OK,
+        stanza_hub,
         "QuotaGuard",
         feature_name="QuotaGuardFeature",
         priority_boost=0,
@@ -84,12 +80,12 @@ def quota_guard_with_feature(stanza_config, quota_guard_config, quota_service):
 
 
 @pytest.fixture
-def quota_guard_with_priority_boost(stanza_config, quota_guard_config, quota_service):
+def quota_guard_with_priority_boost(stanza_hub, quota_guard_config):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (quota_guard_config, common_pb2.Config.CONFIG_CACHED_OK)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        quota_guard_config,
-        common_pb2.Config.CONFIG_CACHED_OK,
+        stanza_hub,
         "QuotaGuard",
         feature_name=None,
         priority_boost=5,
@@ -98,12 +94,12 @@ def quota_guard_with_priority_boost(stanza_config, quota_guard_config, quota_ser
 
 
 @pytest.fixture
-def guard_without_config(stanza_config, quota_service):
+def guard_without_config(stanza_hub):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (None, common_pb2.Config.CONFIG_UNSPECIFIED)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        None,
-        common_pb2.Config.CONFIG_UNSPECIFIED,
+        stanza_hub,
         "GuardWithoutConfig",
         feature_name=None,
         priority_boost=0,
@@ -112,12 +108,12 @@ def guard_without_config(stanza_config, quota_service):
 
 
 @pytest.fixture
-def guard_without_config_fetch_error(stanza_config, quota_service):
+def guard_without_config_fetch_error(stanza_hub):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (None, common_pb2.Config.CONFIG_FETCH_ERROR)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        None,
-        common_pb2.Config.CONFIG_FETCH_ERROR,
+        stanza_hub,
         "GuardWithoutConfig",
         feature_name=None,
         priority_boost=0,
@@ -126,12 +122,12 @@ def guard_without_config_fetch_error(stanza_config, quota_service):
 
 
 @pytest.fixture
-def guard_without_config_fetch_timeout(stanza_config, quota_service):
+def guard_without_config_fetch_timeout(stanza_hub):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (None, common_pb2.Config.CONFIG_FETCH_TIMEOUT)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        None,
-        common_pb2.Config.CONFIG_FETCH_TIMEOUT,
+        stanza_hub,
         "GuardWithoutConfig",
         feature_name=None,
         priority_boost=0,
@@ -140,12 +136,12 @@ def guard_without_config_fetch_timeout(stanza_config, quota_service):
 
 
 @pytest.fixture
-def guard_without_config_not_found(stanza_config, quota_service):
+def guard_without_config_not_found(stanza_hub):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (None, common_pb2.Config.CONFIG_NOT_FOUND)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        None,
-        common_pb2.Config.CONFIG_NOT_FOUND,
+        stanza_hub,
         "GuardWithoutConfig",
         feature_name=None,
         priority_boost=0,
@@ -164,12 +160,12 @@ def token_guard_config():
 
 
 @pytest.fixture
-def token_guard(stanza_config, token_guard_config, quota_service):
+def token_guard(stanza_hub, token_guard_config):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (token_guard_config, common_pb2.Config.CONFIG_CACHED_OK)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        token_guard_config,
-        common_pb2.Config.CONFIG_CACHED_OK,
+        stanza_hub,
         "TokenGuard",
         feature_name=None,
         priority_boost=0,
@@ -188,12 +184,12 @@ def report_only_guard_config():
 
 
 @pytest.fixture
-def report_only_guard(stanza_config, report_only_guard_config, quota_service):
+def report_only_guard(stanza_hub, report_only_guard_config):
+    stanza_hub.config_manager.get_guard_config.return_value = async_return(
+        (report_only_guard_config, common_pb2.Config.CONFIG_CACHED_OK)
+    )
     return make_guard(
-        quota_service,
-        stanza_config,
-        report_only_guard_config,
-        common_pb2.Config.CONFIG_CACHED_OK,
+        stanza_hub,
         "ReportOnlyQuotaGuard",
         feature_name=None,
         priority_boost=0,

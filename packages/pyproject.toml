@@ -31,6 +31,7 @@ priority = "supplemental"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
+pytest-cov = "^4.1.0"
 pytest-asyncio = "^0.23.2"
 # We import a version of 'pytest-socket' with an additional fix that is
 # unmerged as of now to prevent this plugin from breaking the VSCode debugger.
