@@ -45,15 +45,7 @@ class StanzaClient:
                     self.__config = config
                     self.__hub = StanzaHub(config)
                     StanzaClient.__instance = self
-
                     self.__hub.start_poller()
-
-                    # TODO: Add refetch logic for this whenever 'exp' happens.
-                    # self.__hub.fetch_otel_bearer_token()
-
-                    # TODO: Initialize OTEL TextMapPropagator here
-                    # otel.InitTextMapPropagator(otel.StanzaHeaders{})
-
                     return
 
         raise RuntimeError("The Stanza SDK client has already been initialized")

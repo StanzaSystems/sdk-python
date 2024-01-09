@@ -19,13 +19,15 @@ def make_guard(
     """Create a guard without starting any background tasks."""
 
     with (
-        patch("getstanza.guard.batch_token_consumer_task") as batch_token_consumer_task,
+        patch(
+            "getstanza.guard.batch_token_consumer_handle"
+        ) as batch_token_consumer_handle,
         patch("getstanza.guard.batch_token_consumer") as batch_token_consumer,
         patch(
             "getstanza.guard.handle_batch_token_consumer"
         ) as handle_batch_token_consumer,
     ):
-        batch_token_consumer_task.return_value = async_noop
+        batch_token_consumer_handle.return_value = async_noop
         batch_token_consumer.return_value = async_noop
         handle_batch_token_consumer.return_value = noop
 

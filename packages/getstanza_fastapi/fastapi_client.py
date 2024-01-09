@@ -8,6 +8,11 @@ from getstanza.client import StanzaClient
 from getstanza.configuration import StanzaConfiguration
 from getstanza_fastapi.fastapi_guard import StanzaGuard
 
+# TODO: Check for weird background worker / thread id behavior when wrapping
+# synchronous handlers with the async decorator. If it's an issue for some
+# reason, then make a separate synchronous decorator. Otherwise just leave it
+# as it is.
+
 
 class StanzaFastAPIClient(StanzaClient):
     """

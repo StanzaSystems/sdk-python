@@ -33,6 +33,8 @@ from getstanza.guard import GuardedStatus
 # server is using a custom data envelope format for the error, we want to be
 # able to use theirs instead of hardcoding it into the application.
 
+# TODO: Should we make the guard accessible? Would that be useful?
+
 
 class StanzaGuard:
     """Helps wrap a FastAPI request handler with a guard.
@@ -57,11 +59,6 @@ class StanzaGuard:
         self.__client = StanzaClient.getInstance()
 
     def __enter__(self):
-        logging.debug(
-            "=== Sync ENTER for guard '%s' on thread '%s' ===",
-            self.__guard_name,
-            threading.get_ident(),
-        )
         event_loop = None
         try:
             event_loop = asyncio.get_running_loop()
@@ -83,22 +80,12 @@ class StanzaGuard:
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
-        logging.debug(
-            "=== Sync EXIT for guard '%s' on thread '%s' ===",
-            self.__guard_name,
-            threading.get_ident(),
-        )
         exit_status = self.__guard.success if exc_val is None else self.__guard.failure
         message = str(exc_val) if exc_val else None
 
         return self.__end_guard(exit_status, message)
 
     async def __aenter__(self):
-        logging.debug(
-            "=== Async ENTER for guard '%s' on thread '%s' ===",
-            self.__guard_name,
-            threading.get_ident(),
-        )
         return await self.__execute_guard()
 
     async def __aexit__(
@@ -107,11 +94,6 @@ class StanzaGuard:
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
-        logging.debug(
-            "=== Async EXIT for guard '%s' on thread '%s' ===",
-            self.__guard_name,
-            threading.get_ident(),
-        )
         exit_status = self.__guard.success if exc_val is None else self.__guard.failure
         message = str(exc_val) if exc_val else None
 
