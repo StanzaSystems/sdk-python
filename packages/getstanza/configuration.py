@@ -3,8 +3,6 @@ import os
 import uuid
 from typing import Optional
 
-from getstanza.otel import OpenTelemetry
-
 CONFIG_POLL_INTERVAL_SECS = 15
 
 
@@ -68,7 +66,6 @@ class StanzaConfiguration:
         else:
             self.hub_address = hub_address
 
-        self.otel: Optional[OpenTelemetry] = None
         self.interval = datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS)
         self.client_id = str(uuid.uuid4())
         self.customer_id: Optional[str] = None

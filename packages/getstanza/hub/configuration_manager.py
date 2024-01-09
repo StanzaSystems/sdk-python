@@ -29,6 +29,10 @@ class StanzaHubConfigurationManager:
     def service_config(self):
         return self.__service_config
 
+    @property
+    def otel(self):
+        return self.__otel
+
     def __init__(
         self,
         auth_service: auth_pb2_grpc.AuthServiceStub,
@@ -44,6 +48,7 @@ class StanzaHubConfigurationManager:
         self.__service_config: Optional[config_pb2.ServiceConfig] = None
         self.__service_config_version: Optional[str] = None
         self.__guard_configs: MutableMapping[str, VersionedGuardConfig] = {}
+        self.__otel: Optional[OpenTelemetry] = None
 
     async def get_guard_config(
         self, guard_name: str
@@ -76,9 +81,28 @@ class StanzaHubConfigurationManager:
             logging.debug("{}".format(str(rpc_error)))
             return ""
 
+    async def connect_otel(self):
+        """Connect to OTEL collector and create global meter and tracer."""
+
+        if self.__service_config:
+            bearer_token = await self.fetch_otel_bearer_token()
+            if bearer_token:
+                otel = OpenTelemetry(
+                    bearer_token=bearer_token,
+                    metric_collector_url=self.__service_config.metric_config.collector_url,
+                    trace_collector_url=self.__service_config.trace_config.collector_url,
+                    trace_sample_rate=self.__service_config.trace_config.sample_rate_default,
+                    service_name=str(self.config.service_name or ""),
+                    service_release=str(self.config.service_release or ""),
+                    environment=str(self.config.environment or ""),
+                )
+                if otel.new_meter() and otel.new_tracer():
+                    self.__otel = otel
+
     async def fetch_service_config(self):
         """Fetch service configuration changes."""
 
+        last_version = self.__service_config
         last_version_seen = self.__service_config_version
 
         try:
@@ -111,21 +135,17 @@ class StanzaHubConfigurationManager:
                 service_config_response.version,
             )
 
-            # TODO: reconnect OTEL if config has changed
-            if not self.config.otel:
-                bearer_token = await self.fetch_otel_bearer_token()
-                if bearer_token:
-                    otel = OpenTelemetry(
-                        bearer_token=bearer_token,
-                        metric_collector_url=service_config_response.config.metric_config.collector_url,
-                        trace_collector_url=service_config_response.config.trace_config.collector_url,
-                        trace_sample_rate=service_config_response.config.trace_config.sample_rate_default,
-                        service_name=str(self.config.service_name or ""),
-                        service_release=str(self.config.service_release or ""),
-                        environment=str(self.config.environment or ""),
-                    )
-                    if otel.new_meter() and otel.new_tracer():
-                        self.config.otel = otel
+            if (
+                not self.__otel
+                or not last_version
+                or (
+                    last_version.trace_config
+                    != service_config_response.config.trace_config
+                    or last_version.metric_config
+                    != service_config_response.config.metric_config
+                )
+            ):
+                await self.connect_otel()
 
     async def fetch_guard_config(
         self, guard_name: str
