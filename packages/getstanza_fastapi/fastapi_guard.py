@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import threading
 from types import TracebackType
 from typing import Optional
 

@@ -6,7 +6,7 @@ import time
 from collections import defaultdict
 from datetime import timedelta, timezone
 from enum import Enum
-from typing import Iterable, List, Optional, cast
+from typing import Iterable, Optional, cast
 
 import grpc
 from getstanza.hub import StanzaHub
@@ -633,7 +633,7 @@ async def batch_token_consumer():
             seized_leases = consumed_leases
             consumed_leases = defaultdict(list)
 
-        consumption_tasks: List[asyncio.Task] = []
+        consumption_tasks: list[asyncio.Task] = []
 
         for environment, leases in seized_leases.items():
             consumption_tasks.append(
