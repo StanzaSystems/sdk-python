@@ -50,44 +50,6 @@ def health():
     return "OK"
 
 
-@app.get("/old_quote")
-async def old_quote():
-    """Returns a random quote from ZenQuotes using Requests"""
-
-    # 📛 Name the Stanza Guard which protects this workflow
-    stz = await stanza_client.guard("FamousQuotes")
-
-    # 🪵 Check for and log any returned error messages
-    if stz.error:
-        logging.error(stz.error)
-
-    # 🚫 Stanza Guard has *blocked* this workflow log the error and raise an HTTPException
-    if stz.blocked():
-        logging.error(stz.block_message, extra={"reason": stz.block_reason})
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={"msg": stz.block_message, "reason": stz.block_reason},
-        )
-
-    # ✅ Stanza Guard has *allowed* this workflow, business logic goes here.
-    try:
-        resp = requests.get("https://zenquotes.io/api/random", timeout=10)
-    except (ConnectionError, TimeoutError) as req_exc:
-        stz.end(stz.failure)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=req_exc
-        ) from req_exc
-
-    # 🎉 Happy path, our "business logic" succeeded
-    if resp.status_code is status.HTTP_200_OK:
-        stz.end(stz.success)
-        return resp.json()
-
-    # 😭 Sad path, our "business logic" failed
-    stz.end(stz.failure)
-    raise HTTPException(status_code=resp.status_code, detail=resp.text)
-
-
 @app.get("/quote")
 @stanza_client.stanza_guard("FamousQuotes")
 async def quote():
@@ -135,4 +97,17 @@ def sync_context_manager_quote(request: Request):
     """Returns OK if server is healthy"""
 
     with StanzaGuard(request, "FamousQuotes"):
-        return "OK"
+        # ✅ Stanza Guard has *allowed* this workflow, business logic goes here.
+        try:
+            resp = requests.get("https://zenquotes.io/api/random", timeout=10)
+        except (ConnectionError, TimeoutError) as req_exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=req_exc
+            ) from req_exc
+
+        # 🎉 Happy path, our "business logic" succeeded
+        if resp.status_code is status.HTTP_200_OK:
+            return resp.json()
+
+        # 😭 Sad path, our "business logic" failed
+        raise HTTPException(status_code=resp.status_code, detail=resp.text)
