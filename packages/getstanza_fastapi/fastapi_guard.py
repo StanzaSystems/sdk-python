@@ -7,32 +7,18 @@ from fastapi import HTTPException, Request, status
 from getstanza.client import StanzaClient
 from getstanza.guard import GuardedStatus
 
-# TODO: How do we pass baggage to all outgoing calls?
-
-# TODO: How do we get baggage from the FastAPI request object?
-
-# TODO: Check if errors can be returned from FastAPI without exceptions, and if
+# TODO
+#
+# How do we pass baggage to all outgoing calls?
+#
+# Check if errors can be returned from FastAPI without exceptions, and if
 # so then consider checking for that case and emitting a fail in that scenario.
-
-# TODO: Make sure that the synchronous context manager doesn't mess with token
-# caching and consumption when the first guard that gets called is a
-# synchronous guard. We made it threadsafe, but background tasks might get
-# started on the wrong loop.
 #
-# === CONFIRMED ISSUE AS SUSPECTED ===
-#
-# Idea: Have a way to communicate with the loop on the main thread and schedule
-# it on that one instead of getting the current loop on the current thread when
-# starting the background workers.
-#
-# Alternate Idea: Start the background worker early before the first guard is
-# initialized. This should not incur any measurable or meaningful runtime cost.
-
-# TODO: We may need to handle 429 errors differently. For example, if the
+# We may need to handle 429 errors differently. For example, if the
 # server is using a custom data envelope format for the error, we want to be
 # able to use theirs instead of hardcoding it into the application.
-
-# TODO: Should we make the guard accessible? Would that be useful?
+#
+# Should we make the guard accessible? Would that be useful?
 
 
 class StanzaGuard:
