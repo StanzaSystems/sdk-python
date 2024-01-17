@@ -86,12 +86,17 @@ def get_priority_boost(priority_boost: Optional[int] = None) -> Optional[int]:
 
     if priority_boost is not None:
         _priority_boost = priority_boost
-    elif baggage_boost := (
+
+    if baggage_boost := (
         baggage.get_baggage(STZ_BOOST, context)
         or baggage.get_baggage(UBERCTX_STZ_BOOST_KEY, context)
         or baggage.get_baggage(OT_STZ_BOOST_KEY, context)
     ):
-        _priority_boost = baggage_boost if isinstance(baggage_boost, int) else None
+        _priority_boost = (
+            (_priority_boost or 0) + int(baggage_boost)
+            if isinstance(baggage_boost, (str, int))
+            else None
+        )
 
     if not baggage.get_baggage(STZ_BOOST, context) and _priority_boost is not None:
         baggage.set_baggage(STZ_BOOST, _priority_boost, context)

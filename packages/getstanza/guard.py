@@ -11,8 +11,7 @@ from typing import Iterable, Optional, cast
 import grpc
 from getstanza.hub import StanzaHub
 from getstanza.otel import StanzaMeter
-from getstanza.propagation import StanzaContext, get_feature, get_priority_boost
-from opentelemetry import baggage
+from getstanza.propagation import get_feature, get_priority_boost
 from opentelemetry.trace import Span, StatusCode
 from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2
@@ -161,9 +160,6 @@ class Guard:
         tags=None,
     ):
         global batch_token_consumer_handle
-
-        stanza_baggage = baggage.get_all(StanzaContext.get())
-        logging.debug("Stanza Baggage: %r", stanza_baggage)
 
         self.__guard_name = guard_name
         self.__feature_name = get_feature(feature_name)
