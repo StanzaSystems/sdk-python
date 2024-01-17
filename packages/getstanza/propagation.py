@@ -66,7 +66,8 @@ def get_feature(feature: Optional[str] = None) -> Optional[str]:
         _feature = str(baggage_feat)
 
     if not baggage.get_baggage(STZ_FEAT, context) and _feature is not None:
-        baggage.set_baggage(STZ_FEAT, _feature, context)
+        context = baggage.set_baggage(STZ_FEAT, _feature, context)
+        StanzaContext.set(context)
 
     # Update outgoing headers with additional headers for Jaeger and Datadog.
     if _feature is not None:
