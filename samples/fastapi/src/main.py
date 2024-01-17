@@ -8,12 +8,15 @@ from fastapi import FastAPI, HTTPException, Request, status
 from getstanza.configuration import StanzaConfiguration
 from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
 from getstanza_fastapi.fastapi_guard import StanzaGuard
+from opentelemetry import propagate
 
 # FastAPI Example Service
 NAME = "fastapi-example"
 RELEASE = "0.0.1"
 ENV = "dev"
 DEBUG = True
+
+PROPAGATOR = propagate.get_global_textmap()
 
 if DEBUG:
     logging.basicConfig(level=logging.DEBUG)

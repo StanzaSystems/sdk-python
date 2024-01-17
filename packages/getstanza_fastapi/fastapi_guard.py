@@ -6,19 +6,14 @@ from typing import Optional
 from fastapi import HTTPException, Request, status
 from getstanza.client import StanzaClient
 from getstanza.guard import GuardedStatus
+from getstanza.propagation import context_from_http_headers
 
-# TODO
-#
-# How do we pass baggage to all outgoing calls?
-#
-# Check if errors can be returned from FastAPI without exceptions, and if
+# TODO: Check if errors can be returned from FastAPI without exceptions, and if
 # so then consider checking for that case and emitting a fail in that scenario.
 #
 # We may need to handle 429 errors differently. For example, if the
 # server is using a custom data envelope format for the error, we want to be
 # able to use theirs instead of hardcoding it into the application.
-#
-# Should we make the guard accessible? Would that be useful?
 
 
 class StanzaGuard:
@@ -97,6 +92,9 @@ class StanzaGuard:
             self.__priority_boost,
             self.__tags,
         )
+
+        # Store baggage in a context local to the async handler we're in.
+        context_from_http_headers(self.__request.headers)
 
         # TODO: Pass in baggage from 'self.__request' after OTEL support added.
         self.__guard = await self.__client.guard(
