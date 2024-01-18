@@ -31,8 +31,8 @@ consumed_leases: defaultdict[str, list[quota_pb2.TokenLease]] = defaultdict(list
 consumed_leases_lock = threading.Lock()
 
 # An asynchronous task that flushes consumed leases to Hub every ~200ms.
-batch_token_consumer_task: Optional[asyncio.Task] = None
-batch_token_consumer_task_lock = threading.Lock()
+batch_token_consumer_handle: Optional[asyncio.Handle] = None
+batch_token_consumer_handle_lock = threading.Lock()
 
 
 class GuardedStatus(Enum):
@@ -158,7 +158,7 @@ class Guard:
         default_weight: Optional[float] = None,
         tags=None,
     ):
-        global batch_token_consumer_task
+        global batch_token_consumer_handle
 
         self.__guard_name = guard_name
         self.__feature_name = feature_name
@@ -166,6 +166,7 @@ class Guard:
         self.__default_weight = 0 if default_weight is None else default_weight
         self.__tags = tags
 
+        self.__event_loop = hub.event_loop
         self.__quota_service = hub.quota_service
         self.__config_manager = hub.config_manager
         self.__client_config = hub.config_manager.config
@@ -184,11 +185,11 @@ class Guard:
         self.__quota_status = Quota.QUOTA_NOT_EVAL
 
         # Start the task to flush consumed token leases if not already started.
-        with batch_token_consumer_task_lock:
-            if batch_token_consumer_task is None:
-                loop = asyncio.get_running_loop()
-                batch_token_consumer_task = loop.create_task(batch_token_consumer())
-                batch_token_consumer_task.add_done_callback(handle_batch_token_consumer)
+        with batch_token_consumer_handle_lock:
+            if batch_token_consumer_handle is None:
+                batch_token_consumer_handle = self.__event_loop.call_soon_threadsafe(
+                    start_batch_token_consumer(self.__event_loop)
+                )
 
     def __repr__(self) -> str:
         """Returns all of the current status state of the guard."""
@@ -595,6 +596,20 @@ class Guard:
         logging.debug("Currently sitting at %d consumed leases", len(consumed_leases))
 
 
+def start_batch_token_consumer(event_loop: asyncio.AbstractEventLoop):
+    """Continuously run the batch token consumer on the passed in event loop.
+
+    This function should only be wrapped in call_soon_threadsafe() and called
+    with the aforementioned event loop.
+    """
+
+    def wrapper():
+        task = asyncio.create_task(batch_token_consumer())
+        task.add_done_callback(handle_batch_token_consumer(event_loop))
+
+    return wrapper
+
+
 async def batch_token_consumer():
     """Iterates through all consumed tokens and consumes them in batches.
 
@@ -618,15 +633,15 @@ async def batch_token_consumer():
             seized_leases = consumed_leases
             consumed_leases = defaultdict(list)
 
-        tasks = []
+        consumption_tasks: list[asyncio.Task] = []
 
         for environment, leases in seized_leases.items():
-            tasks.append(
-                asyncio.ensure_future(set_token_lease_consumed(leases, environment))  # type: ignore
+            consumption_tasks.append(
+                asyncio.create_task(set_token_lease_consumed(leases, environment))
             )
 
-        if len(tasks) > 0:
-            await asyncio.wait(tasks)
+        if len(consumption_tasks) > 0:
+            await asyncio.wait(consumption_tasks)
 
         # We measure the time it takes to consume tokens and subtract that from
         # the interval to ensure that we don't surpass the 200ms deadline as
@@ -638,7 +653,7 @@ async def batch_token_consumer():
             await asyncio.sleep(delay)
 
 
-def handle_batch_token_consumer(task: asyncio.Task):
+def handle_batch_token_consumer(event_loop: asyncio.AbstractEventLoop):
     """Gracefully handle and log errors from the background consumer task.
 
     If the task fails because of an error, it will be rescheduled and continue
@@ -647,18 +662,22 @@ def handle_batch_token_consumer(task: asyncio.Task):
 
     # TODO: Retry logic for consumed tokens that we failed to send to Hub?
 
-    global batch_token_consumer_task
+    def wrapper(task: asyncio.Task):
+        global batch_token_consumer_handle
 
-    try:
-        task.result()
-    except asyncio.CancelledError:
-        pass  # Do not log task cancellations.
-    except Exception:
-        logging.exception("Received unexpected exception while consuming leases")
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            pass  # Do not log task cancellations.
+        except Exception:
+            logging.exception("Received unexpected exception while consuming leases")
 
-        with batch_token_consumer_task_lock:
-            batch_token_consumer_task = asyncio.ensure_future(batch_token_consumer())
-            batch_token_consumer_task.add_done_callback(handle_batch_token_consumer)
+            with batch_token_consumer_handle_lock:
+                batch_token_consumer_handle = event_loop.call_soon_threadsafe(
+                    start_batch_token_consumer(event_loop)
+                )
+
+    return wrapper
 
 
 async def set_token_lease_consumed(
