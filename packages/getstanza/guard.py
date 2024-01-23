@@ -11,6 +11,7 @@ from typing import Iterable, Optional, cast
 import grpc
 from getstanza.hub import StanzaHub
 from getstanza.otel import StanzaMeter
+from getstanza.propagation import get_feature, get_priority_boost
 from opentelemetry.trace import Span, StatusCode
 from opentelemetry.util.types import Attributes
 from stanza.hub.v1 import common_pb2, config_pb2, quota_pb2
@@ -161,8 +162,8 @@ class Guard:
         global batch_token_consumer_handle
 
         self.__guard_name = guard_name
-        self.__feature_name = feature_name
-        self.__priority_boost = 0 if priority_boost is None else priority_boost
+        self.__feature_name = get_feature(feature_name)
+        self.__priority_boost = get_priority_boost(priority_boost) or 0
         self.__default_weight = 0 if default_weight is None else default_weight
         self.__tags = tags
 

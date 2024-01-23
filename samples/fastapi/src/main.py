@@ -51,7 +51,7 @@ def health():
 
 
 @app.get("/quote")
-@stanza_client.stanza_guard("FamousQuotes")
+@stanza_client.stanza_guard("FamousQuotes", priority_boost=-1)
 async def quote():
     """Returns a random quote from ZenQuotes using Requests"""
 
