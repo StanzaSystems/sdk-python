@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from getstanza.configuration import StanzaConfiguration
 from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
 from getstanza_fastapi.fastapi_guard import StanzaGuard
+from getstanza_requests.stanza_session import StanzaSession
 
 # FastAPI Example Service
 NAME = "fastapi-example"
@@ -58,6 +59,27 @@ async def quote():
     # ✅ Stanza Guard has *allowed* this workflow, business logic goes here.
     try:
         resp = requests.get("https://zenquotes.io/api/random", timeout=10)
+    except (ConnectionError, TimeoutError) as req_exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=req_exc
+        ) from req_exc
+
+    # 🎉 Happy path, our "business logic" succeeded
+    if resp.status_code is status.HTTP_200_OK:
+        return resp.json()
+
+    # 😭 Sad path, our "business logic" failed
+    raise HTTPException(status_code=resp.status_code, detail=resp.text)
+
+
+@app.get("/outgoing_quote")
+async def outgoing_quote():
+    """Returns a random quote from ZenQuotes using Requests"""
+
+    # ✅ Stanza Guard has *allowed* this workflow, business logic goes here.
+    try:
+        with StanzaSession("FamousQuotes") as session:
+            resp = session.get("https://zenquotes.io/api/random", timeout=10)
     except (ConnectionError, TimeoutError) as req_exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=req_exc

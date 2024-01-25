@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+import threading
+from collections import defaultdict
 from typing import MutableMapping, Optional, TypedDict, cast
 
 import grpc
@@ -23,6 +25,9 @@ VersionedGuardConfig = TypedDict(
         "config": config_pb2.GuardConfig,
     },
 )
+
+service_config_lock = threading.Lock()
+guard_config_locks = defaultdict(threading.Lock)
 
 
 class StanzaHubConfigurationManager:
@@ -93,8 +98,7 @@ class StanzaHubConfigurationManager:
             return
 
         if self.__service_config:
-            bearer_token = await self.fetch_otel_bearer_token()
-            if bearer_token:
+            if bearer_token := await self.fetch_otel_bearer_token():
                 otel = OpenTelemetry(
                     bearer_token=bearer_token,
                     metric_collector_url=self.__service_config.metric_config.collector_url,
@@ -110,100 +114,102 @@ class StanzaHubConfigurationManager:
     async def fetch_service_config(self):
         """Fetch service configuration changes."""
 
-        last_version = self.__service_config
-        last_version_seen = self.__service_config_version
+        with service_config_lock:
+            last_version = self.__service_config
+            last_version_seen = self.__service_config_version
 
-        try:
-            service_config_response = cast(
-                config_pb2.GetServiceConfigResponse,
-                self.__config_service.GetServiceConfig(
-                    metadata=self.config.metadata,
-                    request=config_pb2.GetServiceConfigRequest(
-                        client_id=self.config.client_id,
-                        version_seen=last_version_seen,
-                        service=common_pb2.ServiceSelector(
-                            name=self.config.service_name,
-                            release=self.config.service_release,
-                            environment=self.config.environment,
+            try:
+                service_config_response = cast(
+                    config_pb2.GetServiceConfigResponse,
+                    self.__config_service.GetServiceConfig(
+                        metadata=self.config.metadata,
+                        request=config_pb2.GetServiceConfigRequest(
+                            client_id=self.config.client_id,
+                            version_seen=last_version_seen,
+                            service=common_pb2.ServiceSelector(
+                                name=self.config.service_name,
+                                release=self.config.service_release,
+                                environment=self.config.environment,
+                            ),
                         ),
+                        timeout=DEFAULT_TIMEOUT,
                     ),
-                    timeout=DEFAULT_TIMEOUT,
-                ),
-            )
-        except grpc.RpcError as rpc_error:
-            logging.debug(str(rpc_error))
-            return
-
-        if service_config_response.config_data_sent:
-            self.__service_config = service_config_response.config
-            self.__service_config_version = service_config_response.version
-            self.config.customer_id = service_config_response.config.customer_id
-            logging.debug(
-                "Service config has changed from version '%s' to '%s'",
-                last_version_seen,
-                service_config_response.version,
-            )
-
-            if (
-                not self.__otel
-                or not last_version
-                or (
-                    last_version.trace_config
-                    != service_config_response.config.trace_config
-                    or last_version.metric_config
-                    != service_config_response.config.metric_config
                 )
-            ):
-                await self.connect_otel()
+            except grpc.RpcError as rpc_error:
+                logging.debug(str(rpc_error))
+                return
+
+            if service_config_response.config_data_sent:
+                self.__service_config = service_config_response.config
+                self.__service_config_version = service_config_response.version
+                self.config.customer_id = service_config_response.config.customer_id
+                logging.debug(
+                    "Service config has changed from version '%s' to '%s'",
+                    last_version_seen,
+                    service_config_response.version,
+                )
+
+                if (
+                    not self.__otel
+                    or not last_version
+                    or (
+                        last_version.trace_config
+                        != service_config_response.config.trace_config
+                        or last_version.metric_config
+                        != service_config_response.config.metric_config
+                    )
+                ):
+                    await self.connect_otel()
 
     async def fetch_guard_config(
         self, guard_name: str
     ) -> (tuple[config_pb2.GuardConfig, common_pb2.Config]):
         """Fetch guard configuration changes for a specific guard."""
 
-        existing_guard_config = self.__guard_configs.get(guard_name)
-        last_version_seen = None
-        if existing_guard_config:
-            last_version_seen = existing_guard_config["version"]
+        with guard_config_locks[guard_name]:
+            existing_guard_config = self.__guard_configs.get(guard_name)
+            last_version_seen = None
+            if existing_guard_config:
+                last_version_seen = existing_guard_config["version"]
 
-        try:
-            guard_config_response = cast(
-                config_pb2.GetGuardConfigResponse,
-                self.__config_service.GetGuardConfig(
-                    metadata=self.config.metadata,
-                    request=config_pb2.GetGuardConfigRequest(
-                        version_seen=last_version_seen,
-                        selector=common_pb2.GuardServiceSelector(
-                            guard_name=guard_name,
-                            service_name=self.config.service_name,
-                            service_release=self.config.service_release,
-                            environment=self.config.environment,
+            try:
+                guard_config_response = cast(
+                    config_pb2.GetGuardConfigResponse,
+                    self.__config_service.GetGuardConfig(
+                        metadata=self.config.metadata,
+                        request=config_pb2.GetGuardConfigRequest(
+                            version_seen=last_version_seen,
+                            selector=common_pb2.GuardServiceSelector(
+                                guard_name=guard_name,
+                                service_name=self.config.service_name,
+                                service_release=self.config.service_release,
+                                environment=self.config.environment,
+                            ),
                         ),
+                        timeout=DEFAULT_TIMEOUT,
                     ),
-                    timeout=DEFAULT_TIMEOUT,
-                ),
-            )
-        except grpc.RpcError as rpc_error:
-            logging.debug(str(rpc_error))
-            return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCH_ERROR
+                )
+            except grpc.RpcError as rpc_error:
+                logging.debug(str(rpc_error))
+                return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCH_ERROR
 
-        if guard_config_response.config_data_sent:
-            self.__guard_configs[guard_name] = {
-                "version": guard_config_response.version,
-                "config": guard_config_response.config,
-            }
-            logging.debug(
-                "Guard config for guard '%s' has changed from version '%s' to '%s'",
-                guard_name,
-                last_version_seen,
-                guard_config_response.version,
-            )
-            return (
-                self.__guard_configs[guard_name]["config"],
-                common_pb2.Config.CONFIG_FETCHED_OK,
-            )
-        else:
-            return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCHED_OK
+            if guard_config_response.config_data_sent:
+                self.__guard_configs[guard_name] = {
+                    "version": guard_config_response.version,
+                    "config": guard_config_response.config,
+                }
+                logging.debug(
+                    "Guard config for guard '%s' has changed from version '%s' to '%s'",
+                    guard_name,
+                    last_version_seen,
+                    guard_config_response.version,
+                )
+                return (
+                    self.__guard_configs[guard_name]["config"],
+                    common_pb2.Config.CONFIG_FETCHED_OK,
+                )
+            else:
+                return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCHED_OK
 
     async def refetch_known_guard_configs(self):
         """Refetch all known instantiated guards."""

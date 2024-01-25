@@ -21,12 +21,23 @@ class StanzaHub:
                 config.hub_address, grpc.ssl_channel_credentials()
             )
 
-        # There are times where other threads will need to interact with
-        # Stanza. We keep a reference to the loop being used by the SDK client
-        # from the thread it was initialized on to ensure that any new
-        # recurring tasks created from other threads are able to run for the
-        # duration of the SDK client's lifetime.
-        self.event_loop = asyncio.get_running_loop()
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass  # Expected result as we want no event loop running yet.
+        else:
+            raise RuntimeError(
+                "Cannot create an event loop for Hub as this thread already "
+                "has a loop initialized."
+            )
+
+        # Other threads will need to interact with Stanza. We keep a reference
+        # to the loop being used by the SDK client from the thread it was
+        # initialized on to ensure that any new recurring tasks spawned from
+        # other threads are able to run for the duration of the SDK client's
+        # lifetime.
+        self.event_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.event_loop)
 
         # Create Stanza Hub service stubs.
         self.auth_service = auth_pb2_grpc.AuthServiceStub(self.__grpc_channel)
@@ -53,3 +64,4 @@ class StanzaHub:
         """Start async polling of Hub for Service and Guard configs"""
 
         self.hub_poller.start()
+        self.event_loop.run_forever()
