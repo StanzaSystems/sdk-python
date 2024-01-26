@@ -31,27 +31,11 @@ class StanzaSession(Session):
     def request(self, *args, **kwargs) -> Response:
         """Calls 'request' along with additional baggage and guard checks."""
 
-        StanzaContext.get()
-
         # TODO: We need to confirm this in both async and sync contexts.
-
-        event_loop = None
-        try:
-            event_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            pass  # This is fine and means that no loop is running.
-        finally:
-            logging.debug(
-                "XXX: Event loop result while calling 'request': %r", event_loop
-            )
 
         # TODO: Pass in feature and boost from baggage to guard constructor.
 
-        logging.debug("XXX: HUB %r", self.__client.hub)
-
         if self.__client.hub is not None:
-            logging.debug("XXX: RUNNING GUARD")
-
             # Initialize and run the guard. It's important that initialize on
             # the current thread so that the incoming baggage can be read from.
             guard = Guard(
@@ -68,17 +52,13 @@ class StanzaSession(Session):
 
             # 🪵 Check for and log any returned error messages
             if guard.error:
-                logging.debug("XXX: Guard ERROR")
                 logging.error(guard.error)
 
             # 🚫 Stanza Guard has *blocked* this workflow log the error and
             # raise an HTTPException with a 429 response code.
             if guard.blocked():
-                logging.debug("XXX: Guard BLOCKED")
                 logging.error(guard.block_message, extra={"reason": guard.block_reason})
                 return self.__make_response(guard)
-
-            logging.debug("XXX: Making outgoing HTTP request as guard future resolved")
 
         return super().request(*args, **kwargs)
 

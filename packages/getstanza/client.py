@@ -55,7 +55,6 @@ class StanzaClient:
         """Initialize the Hub worker and start it on a new thread."""
 
         def target():
-            logging.debug("XXX: THREAD START")
             self.__hub = StanzaHub(self.__config)
             self.__hub.start_poller()
 
