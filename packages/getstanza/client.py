@@ -39,11 +39,12 @@ class StanzaClient:
 
         logging.debug("Initializing Stanza")
 
+        self.__config = config
+        self.__hub = None
+
         if StanzaClient.__instance is None:
             with StanzaClient.__lock:
                 if StanzaClient.__instance is None:
-                    self.__config = config
-                    self.__hub = None
                     StanzaClient.__instance = self
                     self.__start_poller()
                     return
@@ -54,6 +55,7 @@ class StanzaClient:
         """Initialize the Hub worker and start it on a new thread."""
 
         def target():
+            logging.debug("XXX: THREAD START")
             self.__hub = StanzaHub(self.__config)
             self.__hub.start_poller()
 
@@ -61,7 +63,7 @@ class StanzaClient:
         # persists for the lifetime of the process, and only one can exist.
         # Being marked as a daemon thread, this thread will not stop signals
         # from killing the process.
-        threading.Thread(target=target, daemon=True)
+        threading.Thread(target=target, daemon=True).start()
 
     async def guard(
         self,

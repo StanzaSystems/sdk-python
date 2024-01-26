@@ -6,6 +6,7 @@ import sys
 import requests
 from fastapi import FastAPI, HTTPException, Request, status
 from getstanza.configuration import StanzaConfiguration
+from getstanza.propagation import StanzaContext, context_from_http_headers
 from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
 from getstanza_fastapi.fastapi_guard import StanzaGuard
 from getstanza_requests.stanza_session import StanzaSession
@@ -73,13 +74,18 @@ async def quote():
 
 
 @app.get("/outgoing_quote")
-async def outgoing_quote():
+async def outgoing_quote(request: Request):
     """Returns a random quote from ZenQuotes using Requests"""
+
+    # TODO: Have a way to automate this per handler call in the case where
+    # guard decorators are not being used.
+    context_from_http_headers(request.headers)
 
     # ✅ Stanza Guard has *allowed* this workflow, business logic goes here.
     try:
         with StanzaSession("FamousQuotes") as session:
-            resp = session.get("https://zenquotes.io/api/random", timeout=10)
+            # resp = session.get("https://zenquotes.io/api/random", timeout=10)
+            resp = session.get("https://example.com", timeout=10)
     except (ConnectionError, TimeoutError) as req_exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=req_exc
@@ -87,7 +93,8 @@ async def outgoing_quote():
 
     # 🎉 Happy path, our "business logic" succeeded
     if resp.status_code is status.HTTP_200_OK:
-        return resp.json()
+        # return resp.json()
+        return {"result": "happiness"}
 
     # 😭 Sad path, our "business logic" failed
     raise HTTPException(status_code=resp.status_code, detail=resp.text)

@@ -689,6 +689,8 @@ async def set_token_lease_consumed(
     import getstanza.client
 
     client = getstanza.client.StanzaClient.getInstance()
+    if client.hub is None:
+        raise RuntimeError("The Stanza SDK has not yet been initialized")
 
     set_token_lease_consumed_request = quota_pb2.SetTokenLeaseConsumedRequest(
         tokens=list(map(lambda lease: lease.token, leases)),

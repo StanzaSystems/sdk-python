@@ -4,6 +4,8 @@ import asyncio
 import logging
 
 from getstanza.client import StanzaClient
+from getstanza.guard import Guard
+from getstanza.propagation import StanzaContext
 from requests import PreparedRequest, Request, Response, Session
 
 
@@ -29,6 +31,8 @@ class StanzaSession(Session):
     def request(self, *args, **kwargs) -> Response:
         """Calls 'request' along with additional baggage and guard checks."""
 
+        StanzaContext.get()
+
         # TODO: We need to confirm this in both async and sync contexts.
 
         event_loop = None
@@ -43,22 +47,53 @@ class StanzaSession(Session):
 
         # TODO: Pass in feature and boost from baggage to guard constructor.
 
-        # TODO: Double check the specification that letting the request through
-        # if not initialized yet is okay.
+        logging.debug("XXX: HUB %r", self.__client.hub)
 
         if self.__client.hub is not None:
-            future = asyncio.run_coroutine_threadsafe(
-                self.__client.guard(
-                    guard_name=self.__guard_name,
-                    feature=None,
-                    priority_boost=None,
-                    default_weight=None,
-                    tags=None,
-                ),
-                self.__client.hub.event_loop,
-            )
-            future.result()
+            logging.debug("XXX: RUNNING GUARD")
 
-        logging.debug("XXX: Making outgoing HTTP request as guard future resolved")
+            # Initialize and run the guard. It's important that initialize on
+            # the current thread so that the incoming baggage can be read from.
+            guard = Guard(
+                self.__client.hub,
+                self.__guard_name,
+                feature_name=None,
+                priority_boost=None,
+                default_weight=None,
+                tags=None,
+            )
+            asyncio.run_coroutine_threadsafe(
+                guard.run(), self.__client.hub.event_loop
+            ).result()
+
+            # 🪵 Check for and log any returned error messages
+            if guard.error:
+                logging.debug("XXX: Guard ERROR")
+                logging.error(guard.error)
+
+            # 🚫 Stanza Guard has *blocked* this workflow log the error and
+            # raise an HTTPException with a 429 response code.
+            if guard.blocked():
+                logging.debug("XXX: Guard BLOCKED")
+                logging.error(guard.block_message, extra={"reason": guard.block_reason})
+                return self.__make_response(guard)
+
+            logging.debug("XXX: Making outgoing HTTP request as guard future resolved")
 
         return super().request(*args, **kwargs)
+
+    def __make_response(self, guard: Guard) -> Response:
+        """Craft a fake python-requests response with a 429 error code."""
+
+        def json(*args, **kwargs):
+            return {
+                "message": guard.block_message,
+                "reason": guard.block_reason,
+            }
+
+        response = Response()
+        response.status_code = 429
+        response.headers["Content-Type"] = "application/json"
+        response.json = json
+
+        return response
