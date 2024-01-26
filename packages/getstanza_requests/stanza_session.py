@@ -2,11 +2,13 @@
 
 import asyncio
 import logging
+from typing import Optional
 
 from getstanza.client import StanzaClient
 from getstanza.guard import Guard
-from getstanza.propagation import StanzaContext
+from getstanza.propagation import http_headers_from_context
 from requests import PreparedRequest, Request, Response, Session
+from requests.utils import check_header_validity
 
 
 class StanzaSession(Session):
@@ -15,16 +17,34 @@ class StanzaSession(Session):
     outgoing HTTP requests with Stanza guards.
     """
 
-    def __init__(self, guard_name: str, *args, **kwargs):
+    def __init__(
+        self,
+        guard_name: str,
+        feature_name: Optional[str] = None,
+        priority_boost: Optional[int] = None,
+        default_weight: Optional[float] = None,
+        tags=None,
+        *args,
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
 
         self.__guard_name = guard_name
+        self.__feature_name = feature_name
+        self.__priority_boost = priority_boost
+        self.__default_weight = default_weight
+        self.__tags = tags
+
         self.__client = StanzaClient.getInstance()
 
     def prepare_request(self, request: Request) -> PreparedRequest:
         """Constructs a PreparedRequest with additional baggage headers."""
 
-        # TODO: Add headers to 'request' to add baggage here.
+        outgoing_headers = http_headers_from_context()
+        for header in outgoing_headers.items():
+            check_header_validity(header)
+
+        request.headers = request.headers | outgoing_headers
 
         return super().prepare_request(request)
 
@@ -33,18 +53,16 @@ class StanzaSession(Session):
 
         # TODO: We need to confirm this in both async and sync contexts.
 
-        # TODO: Pass in feature and boost from baggage to guard constructor.
-
         if self.__client.hub is not None:
             # Initialize and run the guard. It's important that initialize on
             # the current thread so that the incoming baggage can be read from.
             guard = Guard(
                 self.__client.hub,
                 self.__guard_name,
-                feature_name=None,
-                priority_boost=None,
-                default_weight=None,
-                tags=None,
+                feature_name=self.__feature_name,
+                priority_boost=self.__priority_boost,
+                default_weight=self.__default_weight,
+                tags=self.__tags,
             )
             asyncio.run_coroutine_threadsafe(
                 guard.run(), self.__client.hub.event_loop
