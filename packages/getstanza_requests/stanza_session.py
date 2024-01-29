@@ -51,8 +51,6 @@ class StanzaSession(Session):
     def request(self, *args, **kwargs) -> Response:
         """Calls 'request' along with additional baggage and guard checks."""
 
-        # TODO: We need to confirm this in both async and sync contexts.
-
         if self.__client.hub is not None:
             # Initialize and run the guard. It's important that initialize on
             # the current thread so that the incoming baggage can be read from.
