@@ -9,7 +9,7 @@ from getstanza.configuration import StanzaConfiguration
 from getstanza.propagation import context_from_http_headers
 from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
 from getstanza_fastapi.fastapi_guard import StanzaGuard
-from getstanza_requests.stanza_session import StanzaSession
+from getstanza_requests import StanzaSession
 
 # FastAPI Example Service
 NAME = "fastapi-example"
