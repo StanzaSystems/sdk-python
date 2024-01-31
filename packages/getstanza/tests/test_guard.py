@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import pytest
 from getstanza import guard
+from getstanza.propagation import context_from_http_headers
 from pytest_socket import enable_socket, socket_allow_hosts
 from stanza.hub.v1 import quota_pb2
 from stanza.hub.v1.common_pb2 import Local, Quota, Token
@@ -19,6 +20,10 @@ def setup_and_teardown():
     # VSCode debugger doesn't get blocked, and we also allow UNIX sockets since
     # asyncio appears to rely on them.
     socket_allow_hosts(allowed=["localhost"], allow_unix_socket=True)
+
+    # Initialize an empty context for the tests. If we don't do this then we'll
+    # get LookupError errors as these tests don't check for incoming baggage.
+    context_from_http_headers({})
 
     yield  # Run the test before executing the teardown logic.
 

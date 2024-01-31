@@ -42,7 +42,8 @@ def context_from_http_headers(headers: Mapping[str, str]) -> OTELContext:
         return f"{key.lower()}={value}"
 
     otel_baggage = [
-        lowercase_pair_key(pair) for pair in headers.get("baggage", "").split(",")
+        lowercase_pair_key(pair)
+        for pair in filter(lambda pair: pair, headers.get("baggage", "").split(","))
     ]
 
     for inbound_header in STANZA_INBOUND_HEADERS:
