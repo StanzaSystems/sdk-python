@@ -5,6 +5,7 @@ import grpc
 from getstanza.configuration import StanzaConfiguration
 from getstanza.hub.configuration_manager import StanzaHubConfigurationManager
 from getstanza.hub.poller import StanzaHubPoller
+from getstanza.hub.telemetry import StanzaTelemetryCollector
 from stanza.hub.v1 import auth_pb2_grpc, config_pb2_grpc, quota_pb2_grpc
 
 
@@ -42,6 +43,10 @@ class StanzaHub:
             event_loop=self.event_loop,
             config_manager=self.config_manager,
             interval=config.interval,
+        )
+        self.telemetry_collector = StanzaTelemetryCollector(
+            event_loop=self.event_loop,
+            config_manager=self.config_manager,
         )
 
     def start_poller(self):
