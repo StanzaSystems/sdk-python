@@ -21,6 +21,9 @@ from stanza.hub.v1.common_pb2 import Config, Local, Mode, Quota, Token
 # Specification Link: https://github.com/StanzaSystems/sdk-spec#token-leases
 BATCH_TOKEN_CONSUME_INTERVAL = 0.2
 
+DEFAULT_TIMEOUT = 300
+TOKEN_LEASE_TIMEOUT = 200
+
 # Contains all cached leases returned by Hub that haven't been used yet.
 cached_leases: defaultdict[
     tuple, list[tuple[datetime.datetime, quota_pb2.TokenLease]]  # Expiration and lease
@@ -302,14 +305,13 @@ class Guard:
             )
         )
 
-        # TODO: Handle validation timeout.
-
         try:
             validate_token_response = cast(
                 quota_pb2.ValidateTokenResponse,
                 self.__quota_service.ValidateToken(
                     request=quota_pb2.ValidateTokenRequest(tokens=tokens_info),
                     metadata=self.__client_config.metadata,
+                    timeout=DEFAULT_TIMEOUT,
                 ),
             )
         except grpc.RpcError as rpc_error:
@@ -330,8 +332,6 @@ class Guard:
         if not self.__guard_config or not self.__guard_config.check_quota:
             self.__quota_status = Quota.QUOTA_EVAL_DISABLED
             return True
-
-        # TODO: Check baggage for stz-feat and stz-boost
 
         # Check to see if a cached lease can be found using the guard selector.
         if cached_lease := self.__consume_cached_token_lease():
@@ -368,6 +368,7 @@ class Guard:
                 self.__quota_service.GetTokenLease(
                     request=token_lease_request,
                     metadata=self.__client_config.metadata,
+                    timeout=TOKEN_LEASE_TIMEOUT,
                 ),
             )
         except grpc.RpcError as rpc_error:
@@ -622,8 +623,6 @@ async def batch_token_consumer():
 
     logging.debug("Starting batch token consumer background worker")
 
-    # TODO: Stop this loop when SIGINT or SIGTERM signals are received.
-
     while True:
         start_time = time.perf_counter()
 
@@ -701,8 +700,8 @@ async def set_token_lease_consumed(
         environment,
     )
 
-    # TODO: We should set a timeout, right?
     client.hub.quota_service.SetTokenLeaseConsumed(
         request=set_token_lease_consumed_request,
         metadata=client.config.metadata,
+        timeout=DEFAULT_TIMEOUT,
     )
