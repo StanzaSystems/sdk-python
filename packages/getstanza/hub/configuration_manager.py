@@ -13,6 +13,8 @@ from stanza.hub.v1 import (
     config_pb2_grpc,
 )
 
+DEFAULT_TIMEOUT = 300
+
 VersionedGuardConfig = TypedDict(
     "VersionedGuardConfig",
     {
@@ -74,6 +76,7 @@ class StanzaHubConfigurationManager:
                     request=auth_pb2.GetBearerTokenRequest(
                         environment=self.config.environment,
                     ),
+                    timeout=DEFAULT_TIMEOUT,
                 ),
             )
             return bearer_token_response.bearer_token
@@ -118,6 +121,7 @@ class StanzaHubConfigurationManager:
                             release=self.config.service_release,
                             environment=self.config.environment,
                         ),
+                        timeout=DEFAULT_TIMEOUT,
                     ),
                 ),
             )
@@ -170,6 +174,7 @@ class StanzaHubConfigurationManager:
                             service_release=self.config.service_release,
                             environment=self.config.environment,
                         ),
+                        timeout=DEFAULT_TIMEOUT,
                     ),
                 ),
             )

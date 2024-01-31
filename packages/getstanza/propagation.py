@@ -36,13 +36,20 @@ def context_from_http_headers(headers: Mapping[str, str]) -> OTELContext:
     baggage contained in extra headers used by Jaeger and Datadog.
     """
 
-    baggage = headers.get("baggage", "").split(",")
+    def lowercase_pair_key(pair):
+        key, value = pair.split("=")
+
+        return f"{key.lower()}={value}"
+
+    otel_baggage = [
+        lowercase_pair_key(pair) for pair in headers.get("baggage", "").split(",")
+    ]
 
     for inbound_header in STANZA_INBOUND_HEADERS:
         if inbound_header in headers:
-            baggage.append(f"{inbound_header}={headers[inbound_header]}")
+            otel_baggage.append(f"{inbound_header}={headers[inbound_header]}")
 
-    carrier = {"baggage": ",".join(baggage)}
+    carrier = {"baggage": ",".join(otel_baggage)}
 
     context = get_global_textmap().extract(carrier)
     StanzaContext.set(context)
