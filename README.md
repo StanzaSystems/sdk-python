@@ -22,7 +22,9 @@ For more information, see the [Initialize Stanza section of our Python SDK docum
 
 ## Usage
 
-TODO
+The SDK supports weighted, prioritized, global rate limiting which is externally managed by the [Stanza Dashboard](https://docs.dev.getstanza.dev/dashboard).
+
+The [samples/fastapi](./samples/fastapi) directory is a good place to start! (It's an example application which shows how to wrap inbound and outbound HTTP traffic with [Stanza Guards](https://docs.dev.getstanza.dev/configuration/guards).)
 
 Or browse the [Official Stanza Documentation](https://docs.dev.getstanza.dev/) for more info on how to get started.
 
