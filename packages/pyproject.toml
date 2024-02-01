@@ -39,7 +39,7 @@ pytest-asyncio = "^0.23.2"
 # unmerged as of now to prevent this plugin from breaking the VSCode debugger.
 # We should switch back to a tag once this gets merged.
 pytest-socket = { git = "https://github.com/magnasilvar/pytest-socket.git", rev = "403f31751822c79c525c6005fd1e96a366873969" }
-grpcio-tools = "^1.60.0"
+flake8 = "^7.0.0"
 
 [build-system]
 requires = ["poetry-core"]
