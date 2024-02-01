@@ -18,11 +18,11 @@ class StanzaClient:
     __lock = threading.Lock()
 
     @property
-    def config(self):
+    def config(self) -> StanzaConfiguration:
         return self.__config
 
     @property
-    def hub(self):
+    def hub(self) -> Optional[StanzaHub]:
         return self.__hub
 
     @classmethod
@@ -39,16 +39,30 @@ class StanzaClient:
 
         logging.debug("Initializing Stanza")
 
+        self.__config = config
+        self.__hub = None
+
         if StanzaClient.__instance is None:
             with StanzaClient.__lock:
                 if StanzaClient.__instance is None:
-                    self.__config = config
-                    self.__hub = StanzaHub(config)
                     StanzaClient.__instance = self
-                    self.__hub.start_poller()
+                    self.__start_poller()
                     return
 
         raise RuntimeError("The Stanza SDK client has already been initialized")
+
+    def __start_poller(self):
+        """Initialize the Hub worker and start it on a new thread."""
+
+        def target():
+            self.__hub = StanzaHub(self.__config)
+            self.__hub.start_poller()
+
+        # We don't worry about cleaning this up since the SDK client instance
+        # persists for the lifetime of the process, and only one can exist.
+        # Being marked as a daemon thread, this thread will not stop signals
+        # from killing the process.
+        threading.Thread(target=target, daemon=True).start()
 
     async def guard(
         self,
@@ -59,6 +73,9 @@ class StanzaClient:
         tags=None,
     ) -> Guard:
         """Initialize a guard and fetch its configuration if not cached."""
+
+        if self.__hub is None:
+            raise RuntimeError("The Stanza SDK client hasn't been initialized yet")
 
         guard = Guard(
             self.__hub,

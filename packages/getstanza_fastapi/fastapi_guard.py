@@ -52,7 +52,7 @@ class StanzaGuard:
                 "'async with StanzaGuard(request, guard_name, ...)'"
             )
 
-        asyncio.run(self.__execute_guard())
+        return asyncio.run(self.__execute_guard())
 
     def __exit__(
         self,
@@ -96,7 +96,6 @@ class StanzaGuard:
         # Store baggage in a context local to the async handler we're in.
         context_from_http_headers(self.__request.headers)
 
-        # TODO: Pass in baggage from 'self.__request' after OTEL support added.
         self.__guard = await self.__client.guard(
             self.__guard_name,
             feature=self.__feature_name,

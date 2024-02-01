@@ -58,6 +58,30 @@ def context_from_http_headers(headers: Mapping[str, str]) -> OTELContext:
     return context
 
 
+def http_headers_from_context() -> dict[str, str]:
+    """Returns HTTP headers corresponding to baggage in the current context."""
+
+    headers: dict[str, str] = {}
+    baggage_pairs: dict[str, str] = {}
+
+    # Add Jaeger and Datadog baggage separately since they should be passed
+    # with their own headers rather than with the main baggage header.
+    for key, value in StanzaOutgoingHeaders.get().items():
+        headers[key] = value
+
+    # Collect baggage pairs that don't have their own unique headers.
+    for key, value in baggage.get_all(StanzaContext.get()).items():
+        if key not in STANZA_INBOUND_HEADERS:
+            baggage_pairs[key.lower()] = str(value)
+
+    # Add 'baggage' with all pairs that aren't in 'STANZA_INBOUND_HEADERS'.
+    headers["baggage"] = ",".join(
+        map(lambda pair: f"{pair[0]}={pair[1]}", baggage_pairs.items())
+    )
+
+    return headers
+
+
 def get_feature(feature: Optional[str] = None) -> Optional[str]:
     """Return the feature from baggage, or the one provided."""
 
