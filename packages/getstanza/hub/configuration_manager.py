@@ -98,7 +98,8 @@ class StanzaHubConfigurationManager:
             return
 
         if self.__service_config:
-            if bearer_token := await self.fetch_otel_bearer_token():
+            bearer_token = await self.fetch_otel_bearer_token()
+            if bearer_token:
                 otel = OpenTelemetry(
                     bearer_token=bearer_token,
                     metric_collector_url=self.__service_config.metric_config.collector_url,
