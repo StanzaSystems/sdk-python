@@ -28,7 +28,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest poetry
-        poetry -C packages install
+        python -m poetry -C ./packages install
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -37,4 +37,4 @@ jobs:
         flake8 ./packages --count --exit-zero --max-complexity=12 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pytest
+        pytest ./packages
