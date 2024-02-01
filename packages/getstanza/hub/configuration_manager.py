@@ -121,8 +121,8 @@ class StanzaHubConfigurationManager:
                             release=self.config.service_release,
                             environment=self.config.environment,
                         ),
-                        timeout=DEFAULT_TIMEOUT,
                     ),
+                    timeout=DEFAULT_TIMEOUT,
                 ),
             )
         except grpc.RpcError as rpc_error:
@@ -174,8 +174,8 @@ class StanzaHubConfigurationManager:
                             service_release=self.config.service_release,
                             environment=self.config.environment,
                         ),
-                        timeout=DEFAULT_TIMEOUT,
                     ),
+                    timeout=DEFAULT_TIMEOUT,
                 ),
             )
         except grpc.RpcError as rpc_error:
