@@ -18,6 +18,7 @@ stanza-apis-grpc-python = "^1.60.0.1.20231026123415+1a9dca8fa2f6"
 stanza-apis-protocolbuffers-python = "^25.1.0.1.20231026123415+1a9dca8fa2f6"
 protoc-gen-openapiv2 = "^0.0.1"
 stanza-apis-protocolbuffers-pyi = "^25.1.0.1.20231026123415+1a9dca8fa2f6"
+grpcio = "^1.60.0"
 
 [[tool.poetry.source]]
 name = "PyPI"
