@@ -57,7 +57,7 @@ class StanzaHubPoller:
                     self.interval.total_seconds(), self.__schedule_poll
                 )
 
-    def __schedule_poll(self, _task: Optional[asyncio.Task[None]] = None):
+    def __schedule_poll(self):
         self.__polling_task = asyncio.create_task(self.__poll_interval())
         self.__polling_task.add_done_callback(self.__handle_hub_poll_result)
 

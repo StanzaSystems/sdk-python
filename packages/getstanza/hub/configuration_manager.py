@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import MutableMapping, Optional, TypedDict, cast
 
 import grpc
@@ -86,6 +87,10 @@ class StanzaHubConfigurationManager:
 
     async def connect_otel(self):
         """Connect to OTEL collector and create global meter and tracer."""
+
+        if os.environ.get("STANZA_NO_OTEL"):
+            # Skip connecting OTEL if STANZA_NO_OTEL environment variable exists.
+            return
 
         if self.__service_config:
             bearer_token = await self.fetch_otel_bearer_token()
