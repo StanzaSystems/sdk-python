@@ -1164,51 +1164,6 @@ files = [
 ]
 
 [[package]]
-name = "stanza-apis-grpc-python"
-version = "1.60.0.1.20231026123415+1a9dca8fa2f6"
-description = ""
-optional = false
-python-versions = "*"
-files = [
-    {file = "stanza_apis_grpc_python-1.60.0.1.20231026123415+1a9dca8fa2f6-py3-none-any.whl", hash = "sha256:c9f1d5a4f643d07a5c1c513708031ccec5a79b07607691a8f872e4c654c6ae89"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://buf.build/gen/python"
-reference = "buf"
-
-[[package]]
-name = "stanza-apis-protocolbuffers-pyi"
-version = "25.1.0.1.20231026123415+1a9dca8fa2f6"
-description = ""
-optional = false
-python-versions = "*"
-files = [
-    {file = "stanza_apis_protocolbuffers_pyi-25.1.0.1.20231026123415+1a9dca8fa2f6-py3-none-any.whl", hash = "sha256:ce489ba789f1ed745676c10284719c0516c56cf0a6530bf3bbbda1726cda89d5"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://buf.build/gen/python"
-reference = "buf"
-
-[[package]]
-name = "stanza-apis-protocolbuffers-python"
-version = "25.1.0.1.20231026123415+1a9dca8fa2f6"
-description = ""
-optional = false
-python-versions = "*"
-files = [
-    {file = "stanza_apis_protocolbuffers_python-25.1.0.1.20231026123415+1a9dca8fa2f6-py3-none-any.whl", hash = "sha256:57d3bc971d561287ded28bc8a299e4f12aba221057b35841e8d4221be8abd0de"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://buf.build/gen/python"
-reference = "buf"
-
-[[package]]
 name = "starlette"
 version = "0.35.1"
 description = "The little ASGI library that shines."
@@ -1464,4 +1419,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "d3abd9c483cc3a62e7ab88105b4a29e67e88474035c7720657a27807fc88f351"
+content-hash = "7a437031207ac2e78c11cbf1ce31eabbe926de18512ee67923f84646ff013bab"
