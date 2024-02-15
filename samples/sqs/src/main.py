@@ -20,9 +20,6 @@ else:
 # Log basic service details at startup
 logging.info("service init, name:%s, release:%s, env:%s", NAME, RELEASE, ENV)
 
-# TODO: Should the SQS client have its own object as well? If the resource for
-# SQS is a singleton, then that should work.
-
 # Init Stanza fault tolerance library
 try:
     client = StanzaSQSClient(
@@ -37,16 +34,10 @@ except ValueError as exc:
     logging.exception(exc)
     sys.exit(1)
 
-# TODO: Can we skip the 'with_stanza' step? Also maybe rename these...
-
 sqs = boto3.resource("sqs")
 queue = client.stanza_guard(
     sqs.get_queue_by_name(QueueName="JkGuardTesting"), "FamousQuotes"
 )
-
-# TODO: ^^^ I can re-use this calling methodology I think. Instead of hooking
-# before, do it after. Use that class I made last week if there's no supported
-# event for what I'm trying to accomplish.
 
 
 def process_message(message):
@@ -61,9 +52,3 @@ if __name__ == "__main__":
         for message in messages:
             process_message(message)
             message.delete()
-
-# PLAN for implementation:
-#
-# Wrap functions like 'receive_messages' and the message number parameter to
-# make guard work transparent based on the number of leases that we have
-# compared to the number of messages.
