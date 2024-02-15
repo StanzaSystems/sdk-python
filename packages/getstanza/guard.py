@@ -377,7 +377,7 @@ class Guard:
                 self.__feature_name,
                 self.__priority_boost,
                 self.__default_weight,
-                tags,
+                self.__tags,
             )
 
             token_lease_response = cast(

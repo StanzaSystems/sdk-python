@@ -1,7 +1,7 @@
 import asyncio
 import inspect
 from functools import WRAPPER_ASSIGNMENTS
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import Request
 from getstanza.client import StanzaClient
@@ -23,7 +23,7 @@ class StanzaFastAPIClient(StanzaClient):
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         """Wrap your FastAPI handler with a Stanza guard."""
 
@@ -103,7 +103,7 @@ class StanzaFastAPIClient(StanzaClient):
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         async def wrapper(request: Request, *args, **kwargs):
             async with StanzaGuard(
@@ -127,7 +127,7 @@ class StanzaFastAPIClient(StanzaClient):
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         async def wrapper(*args, **kwargs):
             request = None
