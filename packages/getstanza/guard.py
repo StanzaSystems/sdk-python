@@ -26,12 +26,12 @@ TOKEN_LEASE_TIMEOUT = 200
 
 # Contains all cached leases returned by Hub that haven't been used yet.
 cached_leases: defaultdict[
-    tuple, list[tuple[datetime.datetime, quota_pb2.TokenLease]]  # Expiration and lease
+    tuple, List[tuple[datetime.datetime, quota_pb2.TokenLease]]  # Expiration and lease
 ] = defaultdict(list)
 cached_leases_lock = threading.Lock()
 
 # Contains all leases that have been consumed, but not yet communicated to Hub.
-consumed_leases: defaultdict[str, list[quota_pb2.TokenLease]] = defaultdict(list)
+consumed_leases: defaultdict[str, List[quota_pb2.TokenLease]] = defaultdict(list)
 consumed_leases_lock = threading.Lock()
 
 # An asynchronous task that flushes consumed leases to Hub every ~200ms.
@@ -559,7 +559,7 @@ class Guard:
     def __set_cached_token_leases(self, leases: Iterable[quota_pb2.TokenLease]):
         """Replaces all cached token leases with a new set of leases."""
 
-        leases_with_expiration: list[tuple[datetime.datetime, quota_pb2.TokenLease]] = (
+        leases_with_expiration: List[tuple[datetime.datetime, quota_pb2.TokenLease]] = (
             []
         )
 
@@ -650,7 +650,7 @@ async def batch_token_consumer():
             seized_leases = consumed_leases
             consumed_leases = defaultdict(list)
 
-        consumption_tasks: list[asyncio.Task] = []
+        consumption_tasks: List[asyncio.Task] = []
 
         for environment, leases in seized_leases.items():
             consumption_tasks.append(
