@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from types import TracebackType
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import HTTPException, Request, status
 from getstanza.client import StanzaClient
@@ -29,7 +29,7 @@ class StanzaGuard:
         guard_name: str,
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         self.__request = request
         self.__guard_name = guard_name

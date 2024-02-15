@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Dict, Optional
 
 from getstanza.client import StanzaClient
 from getstanza.guard import Guard
@@ -23,7 +23,7 @@ class StanzaSession(Session):
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
         *args,
         **kwargs
     ):

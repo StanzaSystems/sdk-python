@@ -6,7 +6,7 @@ import time
 from collections import defaultdict
 from datetime import timedelta, timezone
 from enum import Enum
-from typing import Iterable, Optional, cast
+from typing import Dict, Iterable, List, Optional, cast
 
 import grpc
 from getstanza.hub import StanzaHub
@@ -26,12 +26,12 @@ TOKEN_LEASE_TIMEOUT = 200
 
 # Contains all cached leases returned by Hub that haven't been used yet.
 cached_leases: defaultdict[
-    tuple, list[tuple[datetime.datetime, quota_pb2.TokenLease]]  # Expiration and lease
+    tuple, List[tuple[datetime.datetime, quota_pb2.TokenLease]]  # Expiration and lease
 ] = defaultdict(list)
 cached_leases_lock = threading.Lock()
 
 # Contains all leases that have been consumed, but not yet communicated to Hub.
-consumed_leases: defaultdict[str, list[quota_pb2.TokenLease]] = defaultdict(list)
+consumed_leases: defaultdict[str, List[quota_pb2.TokenLease]] = defaultdict(list)
 consumed_leases_lock = threading.Lock()
 
 # An asynchronous task that flushes consumed leases to Hub every ~200ms.
@@ -160,7 +160,7 @@ class Guard:
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         global batch_token_consumer_handle
 
@@ -340,12 +340,23 @@ class Guard:
             self.__quota_token = cached_lease.token
             return True
 
+        # Add tags (if Guard config allows it)
+        tags: List[common_pb2.Tag] = []
+        if self.__tags and self.__guard_config:
+            for key, value in self.__tags.items():
+                if key in self.__guard_config.quota_tags:
+                    tags.append(common_pb2.Tag(key=key, value=value))
+                else:
+                    logging.info(
+                        "skipping unknown tag = %s, guard = %s", key, self.__guard_name
+                    )
+
         token_lease_request = quota_pb2.GetTokenLeaseRequest(
             selector=common_pb2.GuardFeatureSelector(
                 environment=self.__client_config.environment,
                 guard_name=self.__guard_name,
                 feature_name=self.__feature_name,
-                tags=[],
+                tags=tags,
             ),
             client_id=self.__client_config.client_id,
             priority_boost=self.__priority_boost,
@@ -354,13 +365,19 @@ class Guard:
 
         try:
             logging.debug(
-                "Requesting a token lease with selector: "
-                "(environment = %s, guard = %s, feature = %s, priority boost = %s, default weight = %s)",
+                "Requesting a token lease with selector: ("
+                "environment = %s, "
+                "guard = %s, "
+                "feature = %s, "
+                "priority boost = %s, "
+                "default weight = %s, "
+                "tags = %s)",
                 self.__client_config.environment,
                 self.__guard_name,
                 self.__feature_name,
                 self.__priority_boost,
                 self.__default_weight,
+                self.__tags,
             )
 
             token_lease_response = cast(
@@ -542,9 +559,9 @@ class Guard:
     def __set_cached_token_leases(self, leases: Iterable[quota_pb2.TokenLease]):
         """Replaces all cached token leases with a new set of leases."""
 
-        leases_with_expiration: list[
-            tuple[datetime.datetime, quota_pb2.TokenLease]
-        ] = []
+        leases_with_expiration: List[tuple[datetime.datetime, quota_pb2.TokenLease]] = (
+            []
+        )
 
         # If Hub doesn't return an expiration date for any of the leases, infer
         # it using the duration_msec field associated with the lease.
@@ -633,7 +650,7 @@ async def batch_token_consumer():
             seized_leases = consumed_leases
             consumed_leases = defaultdict(list)
 
-        consumption_tasks: list[asyncio.Task] = []
+        consumption_tasks: List[asyncio.Task] = []
 
         for environment, leases in seized_leases.items():
             consumption_tasks.append(
