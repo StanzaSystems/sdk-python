@@ -1,6 +1,5 @@
 """Constants and utility functions that assist with propagation."""
 
-import logging
 from contextvars import ContextVar
 from typing import Mapping, MutableMapping, Optional
 

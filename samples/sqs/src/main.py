@@ -1,6 +1,5 @@
 import logging
 import sys
-import time
 from typing import Any
 
 import boto3
