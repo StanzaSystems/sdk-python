@@ -1,6 +1,6 @@
 import logging
 import threading
-from typing import Optional, cast
+from typing import Dict, Optional, cast
 
 from getstanza.configuration import StanzaConfiguration
 from getstanza.guard import Guard
@@ -70,7 +70,7 @@ class StanzaClient:
         feature: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ) -> Guard:
         """Initialize a guard and fetch its configuration if not cached."""
 
