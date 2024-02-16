@@ -60,7 +60,7 @@ class StanzaHubConfigurationManager:
 
     async def get_guard_config(
         self, guard_name: str
-    ) -> (tuple[config_pb2.GuardConfig, common_pb2.Config]):
+    ) -> tuple[config_pb2.GuardConfig, common_pb2.Config]:
         """Retrieves the guard config for a specified guard."""
 
         if guard_name in self.__guard_configs:
@@ -87,7 +87,7 @@ class StanzaHubConfigurationManager:
             )
             return bearer_token_response.bearer_token
         except grpc.RpcError as rpc_error:
-            logging.debug(str(rpc_error))
+            logging.error(str(rpc_error))
             return ""
 
     async def connect_otel(self):
@@ -137,7 +137,7 @@ class StanzaHubConfigurationManager:
                     ),
                 )
             except grpc.RpcError as rpc_error:
-                logging.debug(str(rpc_error))
+                logging.error(str(rpc_error))
                 return
 
             if service_config_response.config_data_sent:
@@ -164,7 +164,7 @@ class StanzaHubConfigurationManager:
 
     async def fetch_guard_config(
         self, guard_name: str
-    ) -> (tuple[config_pb2.GuardConfig, common_pb2.Config]):
+    ) -> tuple[config_pb2.GuardConfig, common_pb2.Config]:
         """Fetch guard configuration changes for a specific guard."""
 
         with guard_config_locks[guard_name]:
@@ -191,7 +191,7 @@ class StanzaHubConfigurationManager:
                     ),
                 )
             except grpc.RpcError as rpc_error:
-                logging.debug(str(rpc_error))
+                logging.error(str(rpc_error))
                 return config_pb2.GuardConfig(), common_pb2.Config.CONFIG_FETCH_ERROR
 
             if guard_config_response.config_data_sent:
