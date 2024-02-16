@@ -2,7 +2,7 @@ import asyncio
 import logging
 import re
 import traceback
-from typing import Optional
+from typing import Dict, Optional
 
 from getstanza.client import StanzaClient
 from getstanza.guard import Guard
@@ -28,7 +28,7 @@ class SQSGuard:
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         self.__queue = queue
         self.__guard_name = guard_name

@@ -2,7 +2,7 @@ import logging
 import re
 import threading
 from collections import defaultdict
-from typing import Any, Callable, Hashable, Optional
+from typing import Any, Callable, Dict, Hashable, Optional
 
 from getstanza.client import StanzaClient
 from getstanza.configuration import StanzaConfiguration
@@ -34,7 +34,7 @@ class StanzaSQSClient(StanzaClient):
         feature_name: Optional[str] = None,
         priority_boost: Optional[int] = None,
         default_weight: Optional[float] = None,
-        tags=None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         """
         Wraps a queue with a Stanza guard. This function will also hook Stanza into
