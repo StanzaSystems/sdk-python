@@ -3,10 +3,10 @@ import inspect
 from functools import WRAPPER_ASSIGNMENTS
 from typing import Dict, Optional
 
+import getstanza_fastapi.fastapi_guard
 from fastapi import Request
 from getstanza.client import StanzaClient
 from getstanza.configuration import StanzaConfiguration
-from getstanza_fastapi.fastapi_guard import StanzaGuard
 
 
 class StanzaFastAPIClient(StanzaClient):
@@ -106,7 +106,7 @@ class StanzaFastAPIClient(StanzaClient):
         tags: Optional[Dict[str, str]] = None,
     ):
         async def wrapper(request: Request, *args, **kwargs):
-            async with StanzaGuard(
+            async with getstanza_fastapi.fastapi_guard.StanzaGuard(
                 request,
                 guard_name,
                 feature_name=feature_name,
@@ -131,9 +131,15 @@ class StanzaFastAPIClient(StanzaClient):
     ):
         async def wrapper(*args, **kwargs):
             request = None
+
             for key, value in kwargs.items():
                 if isinstance(value, Request):
                     request = kwargs[key]
+                    break
+
+            for arg in args:
+                if isinstance(arg, Request):
+                    request = arg
                     break
 
             # This should never happen in practice in runtime. This check exists
@@ -144,7 +150,7 @@ class StanzaFastAPIClient(StanzaClient):
                     "the request handler arguments."
                 )
 
-            async with StanzaGuard(
+            async with getstanza_fastapi.fastapi_guard.StanzaGuard(
                 request,
                 guard_name,
                 feature_name=feature_name,

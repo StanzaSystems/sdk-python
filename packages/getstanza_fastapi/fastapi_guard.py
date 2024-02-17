@@ -52,7 +52,7 @@ class StanzaGuard:
                 "'async with StanzaGuard(request, guard_name, ...)'"
             )
 
-        return asyncio.run(self.__execute_guard())
+        return asyncio.run(self._execute_guard())
 
     def __exit__(
         self,
@@ -63,10 +63,10 @@ class StanzaGuard:
         exit_status = self.__guard.success if exc_val is None else self.__guard.failure
         message = str(exc_val) if exc_val else None
 
-        return self.__end_guard(exit_status, message)
+        return self._end_guard(exit_status, message)
 
     async def __aenter__(self):
-        return await self.__execute_guard()
+        return await self._execute_guard()
 
     async def __aexit__(
         self,
@@ -77,9 +77,9 @@ class StanzaGuard:
         exit_status = self.__guard.success if exc_val is None else self.__guard.failure
         message = str(exc_val) if exc_val else None
 
-        return self.__end_guard(exit_status, message)
+        return self._end_guard(exit_status, message)
 
-    async def __execute_guard(self):
+    async def _execute_guard(self):
         """
         Runs the guard this context manager was made for. If the guard blocks
         then an HTTPException with HTTP code 429 will be raised.
@@ -126,7 +126,7 @@ class StanzaGuard:
         # ✅ Stanza Guard has *allowed* this workflow, business logic follows.
         return self
 
-    def __end_guard(self, exit_status: GuardedStatus, message: Optional[str]):
+    def _end_guard(self, exit_status: GuardedStatus, message: Optional[str]):
         """End the guard and collect metrics so that can be communicated."""
 
         if message:
