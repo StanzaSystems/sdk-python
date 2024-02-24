@@ -1,7 +1,8 @@
 from unittest.mock import patch
 
 import pytest
-from fastapi import Request
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
 from getstanza.configuration import StanzaConfiguration
 from getstanza.tests.utils import async_return
 from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
@@ -21,31 +22,58 @@ def fastapi_guard():
         yield instance
 
 
-@pytest.fixture
-def fastapi_client(fastapi_guard):
+@pytest.fixture(scope="module")
+def fastapi_client():
     return StanzaFastAPIClient(
         StanzaConfiguration(
             api_key="MOCK_API_KEY",
             service_name="fastapi-mock",
             service_release="0.0.1",
             environment="dev",
-            hub_address="hub.fake.getstanza.dev:9020",
+            hub_address="localhost",
         )
     )
 
 
-@pytest.fixture
-def mock_request():
-    return Request(scope={"type": "http", "headers": []})
+@pytest.fixture(scope="module")
+def fastapi_app():
+    return FastAPI()
+
+
+@pytest.fixture(scope="module")
+def fastapi_testclient(fastapi_app):
+    return TestClient(fastapi_app)
 
 
 @pytest.mark.asyncio
-async def test_async_wrapper(fastapi_client, fastapi_guard, mock_request):
+async def test_async_wrapper_without_request(
+    fastapi_client, fastapi_guard, fastapi_app, fastapi_testclient
+):
+    @fastapi_app.get("/")
     @fastapi_client.stanza_guard("MockGuard")
-    async def mock_handler(request: Request):
+    async def mock_endpoint(request: Request):
         return {"mock": "response"}
 
-    await mock_handler(mock_request)
+    response = fastapi_testclient.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"mock": "response"}
+
+    fastapi_guard.__aenter__.assert_called_once()
+    fastapi_guard.__aexit__.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_async_wrapper_with_request(
+    fastapi_client, fastapi_guard, fastapi_app, fastapi_testclient
+):
+    @fastapi_app.get("/")
+    @fastapi_client.stanza_guard("MockGuard")
+    async def mock_endpoint():
+        return {"mock": "response"}
+
+    response = fastapi_testclient.get("/")
+    assert response.status_code == 200
+    assert response.json() == {"mock": "response"}
 
     fastapi_guard.__aenter__.assert_called_once()
     fastapi_guard.__aexit__.assert_called_once()
