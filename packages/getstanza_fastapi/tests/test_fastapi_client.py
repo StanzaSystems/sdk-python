@@ -7,8 +7,6 @@ from getstanza.configuration import StanzaConfiguration
 from getstanza.tests.utils import async_return
 from getstanza_fastapi.fastapi_client import StanzaFastAPIClient
 
-# TODO: Test the context manager by itself as well.
-
 
 @pytest.fixture
 def fastapi_guard():
