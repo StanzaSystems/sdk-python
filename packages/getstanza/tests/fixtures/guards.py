@@ -1,11 +1,43 @@
+from collections import defaultdict
 from typing import Optional
 from unittest.mock import patch
 
 import pytest
+from getstanza import guard
 from getstanza.guard import Guard
 from getstanza.hub import StanzaHub
+from getstanza.propagation import context_from_http_headers
 from getstanza.tests.utils import async_noop, async_return, noop
+from pytest_socket import enable_socket, socket_allow_hosts
 from stanza.hub.v1 import common_pb2, config_pb2
+
+
+@pytest.fixture(autouse=True)
+def setup_and_teardown():
+    """Clear global cached and consumed lease state between each test."""
+
+    # Block internet access by default for all tests as we mock all calls going
+    # out to Hub. Tests will throw 'SocketBlockedError' errors if a mock is
+    # missing whilst executing them.
+    #
+    # We have two notable exceptions. We explicitly allow localhost so that the
+    # VSCode debugger doesn't get blocked, and we also allow UNIX sockets since
+    # asyncio appears to rely on them.
+    socket_allow_hosts(allowed=["localhost"], allow_unix_socket=True)
+
+    # Initialize an empty context for the tests. If we don't do this then we'll
+    # get LookupError errors as these tests don't check for incoming baggage.
+    context_from_http_headers({})
+
+    yield  # Run the test before executing the teardown logic.
+
+    with guard.cached_leases_lock:
+        guard.cached_leases = defaultdict(list)
+
+    with guard.consumed_leases_lock:
+        guard.consumed_leases = defaultdict(list)
+
+    enable_socket()
 
 
 def make_guard(
