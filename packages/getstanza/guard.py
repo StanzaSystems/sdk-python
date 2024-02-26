@@ -470,6 +470,7 @@ class Guard:
             "guard": self.__guard_name,
             "feature": str(self.__feature_name or ""),
             "service": str(self.__client_config.service_name or ""),
+            "priority_boost": int(self.__priority_boost),
             "mode": Mode.Name(self.__mode),
             "config_state": Config.Name(self.__config_status),
             "local_reason": Local.Name(self.__local_status),
