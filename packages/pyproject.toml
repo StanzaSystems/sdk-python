@@ -13,6 +13,13 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Topic :: Software Development :: Libraries",
 ]
+packages = [
+    { include = "getstanza" },
+    { include = "getstanza_fastapi" },
+    { include = "getstanza_requests" },
+    { include = "getstanza_sqs" },
+    { include = "stanza" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
