@@ -78,7 +78,8 @@ class StanzaSession(Session):
 
         return super().request(*args, **kwargs)
 
-    def __make_response(self, guard: Guard) -> Response:
+    @staticmethod
+    def __make_response(guard: Guard) -> Response:
         """Craft a fake python-requests response with a 429 error code."""
 
         def json(*args, **kwargs):

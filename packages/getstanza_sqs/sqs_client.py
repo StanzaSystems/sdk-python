@@ -124,7 +124,8 @@ class StanzaSQSClient(StanzaClient):
             tags=tags,
         )
 
-    def __receive_messages(self, params: dict[str, Any], **kwargs) -> dict[str, Any]:
+    @staticmethod
+    def __receive_messages(params: dict[str, Any], **kwargs) -> dict[str, Any]:
         """
         Receives messages with additional parameters.
         Add additional parameters to ReceiveMessage calls that Stanza needs to
@@ -157,7 +158,8 @@ class StanzaSQSClient(StanzaClient):
 
         return params
 
-    def __register_stanza_event_once(self, client, event_name: str, handler: Callable):
+    @staticmethod
+    def __register_stanza_event_once(client, event_name: str, handler: Callable):
         """Registers an event on a client if it's not already registered."""
 
         with _registered_events_lock:
