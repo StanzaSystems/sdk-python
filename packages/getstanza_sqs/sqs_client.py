@@ -20,11 +20,50 @@ _registered_events_lock = threading.Lock()
 
 class StanzaSQSClient(StanzaClient):
     """
+    StanzaSQSClient
+
+    This class extends the StanzaClient class to provide additional functionality for working with AWS SQS queues.
     SDK client that assists with integrating SQS queue workers with Stanza Hub,
     and managing the active service and guard configurations.
+
+    Attributes:
+    - config: StanzaConfiguration - The configuration object for the Stanza client.
+
+    Methods:
+    - __init__(self, config: StanzaConfiguration)
+      Initializes a new instance of the StanzaSQSClient class with the specified configuration.
+
+    - stanza_guard(
+        self,
+        queue,
+        guard_name: str,
+        feature_name: Optional[str] = None,
+        priority_boost: Optional[int] = None,
+        default_weight: Optional[float] = None,
+        tags: Optional[Dict[str, str]] = None,
+    )
+      Wraps a queue with a Stanza guard. This function will also hook Stanza into
+      all 'provide-client-params.sqs.ReceiveMessage' events emitted by the client
+      associated with the passed in queue if it's not already registered.
+
+    - __receive_messages(params: dict[str, Any], **kwargs) -> dict[str, Any]
+      Add additional parameters to ReceiveMessage calls that Stanza needs to
+      function. Specifically, we add "baggage" to the "MessageAttributeNames"
+      param so that OTEL baggage can be propagated.
+
+    - __register_stanza_event_once(client, event_name: str, handler: Callable)
+      Registers an event on a client if it's not already registered.
     """
 
     def __init__(self, config: StanzaConfiguration):
+        """
+
+        Initializes an instance of the class.
+
+        Parameters:
+            config (StanzaConfiguration): The configuration object.
+
+        """
         super().__init__(config)
 
     def stanza_guard(
@@ -37,9 +76,27 @@ class StanzaSQSClient(StanzaClient):
         tags: Optional[Dict[str, str]] = None,
     ):
         """
+        Stanza Guard
+
+        This method registers a stanza event once
+        and creates an instance of SQSGuard to guard a queue with specified attributes.
+
         Wraps a queue with a Stanza guard. This function will also hook Stanza into
         all 'provide-client-params.sqs.ReceiveMessage' events emitted by the client
         associated with the passed in queue if it's not already registered.
+
+        Parameters:
+        - queue: The queue to be guarded.
+        - guard_name: The name of the guard.
+        - feature_name (optional): The name of the feature. Default is None.
+        - priority_boost (optional): The priority boost for the guard.
+        Default is None.
+        - default_weight (optional): The default weight for the guard. Default is None.
+        - tags (optional): Additional tags for the guard.
+        Default is None.
+
+        Returns:
+        An instance of SQSGuard.
         """
 
         self.__register_stanza_event_once(
@@ -67,11 +124,28 @@ class StanzaSQSClient(StanzaClient):
             tags=tags,
         )
 
-    def __receive_messages(self, params: dict[str, Any], **kwargs) -> dict[str, Any]:
+    @staticmethod
+    def __receive_messages(params: dict[str, Any], **kwargs) -> dict[str, Any]:
         """
+        Receives messages with additional parameters.
         Add additional parameters to ReceiveMessage calls that Stanza needs to
-        function. Specifically we add "baggage" to the "MessageAttributeNames"
+        function. Specifically, we add "baggage" to the "MessageAttributeNames"
         param so that OTEL baggage can be propagated.
+
+        :param params: A dictionary containing the parameter values.
+        :type params: dict[str, Any]
+        :param kwargs: Additional keyword arguments.
+        :return: A dictionary containing the modified parameter values.
+        :rtype: dict[str, Any]
+
+        note::
+            The method expects the input parameters to be provided in the `params` dictionary.
+            If the "MessageAttributeNames" parameter is not present in the `params` dictionary,
+            it will be added with an empty list value.
+            Additionally, if the "baggage" keyword
+            is not present in the list of message attribute names, it will be appended.
+            The
+            modified `params` dictionary is then returned.
         """
 
         # TODO: Use approximate stats in queue object to help optimize guard?
@@ -84,7 +158,8 @@ class StanzaSQSClient(StanzaClient):
 
         return params
 
-    def __register_stanza_event_once(self, client, event_name: str, handler: Callable):
+    @staticmethod
+    def __register_stanza_event_once(client, event_name: str, handler: Callable):
         """Registers an event on a client if it's not already registered."""
 
         with _registered_events_lock:

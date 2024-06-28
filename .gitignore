@@ -1,6 +1,12 @@
 # C extensions
 *.so
 
+# Directories
+**/.idea/
+**/__pycache__/
+**/venv*/
+**/.venv*/
+
 # Packages
 *.egg
 *.egg-info
@@ -18,9 +24,6 @@ pyvenv.cfg
 lib
 share/
 lib64
-__pycache__
-venv*/
-.venv*/
 
 # Installer logs
 pip-log.txt

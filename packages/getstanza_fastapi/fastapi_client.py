@@ -97,8 +97,8 @@ class StanzaFastAPIClient(StanzaClient):
 
         return decorator
 
+    @staticmethod
     def __wrapper_with_request(
-        self,
         wrapped,
         guard_name: str,
         feature_name: Optional[str] = None,
@@ -121,8 +121,8 @@ class StanzaFastAPIClient(StanzaClient):
 
         return wrapper
 
+    @staticmethod
     def __wrapper_without_request(
-        self,
         wrapped,
         guard_name: str,
         feature_name: Optional[str] = None,

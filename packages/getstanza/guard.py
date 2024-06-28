@@ -40,7 +40,14 @@ batch_token_consumer_handle_lock = threading.Lock()
 
 
 class GuardedStatus(Enum):
-    """Indicate success or failure of the guarded code block."""
+    """
+    Enumeration class representing the guarded status of an operation.
+
+    Attributes:
+        GUARDED_UNKNOWN (int): Represents an unknown guarded status.
+        GUARDED_SUCCESS (int): Represents a successful guarded status.
+        GUARDED_FAILURE (int): Represents a failed guarded status.
+    """
 
     GUARDED_UNKNOWN = 0
     GUARDED_SUCCESS = 1
@@ -48,7 +55,19 @@ class GuardedStatus(Enum):
 
 
 class GuardEvent(Enum):
-    """Possible event types a guard may emit."""
+    """
+
+    This class represents the possible guard events.
+
+    Attributes:
+        ALLOWED (int): Represents the event when access is allowed.
+        BLOCKED (int): Represents the event when access is blocked.
+        FAILOPEN (int): Represents the event when access fails to open.
+
+    Example:
+        GuardEvent.ALLOWED  # returns 0
+
+    """
 
     ALLOWED = 0
     BLOCKED = 1
@@ -56,7 +75,15 @@ class GuardEvent(Enum):
 
 
 class TokenLeaseStatus(Enum):
-    """Represents the possible statuses of a cached token lease."""
+    """
+    Represents the status of a token lease.
+
+    Attributes:
+        TOKEN_LEASE_VALID (int): Represents a valid token lease.
+        TOKEN_LEASE_EXPIRED (int): Represents an expired token lease.
+        TOKEN_LEASE_WRONG_PRIORITY (int): Represents a token lease with wrong priority.
+
+    """
 
     TOKEN_LEASE_VALID = 0
     TOKEN_LEASE_EXPIRED = 1
@@ -65,8 +92,26 @@ class TokenLeaseStatus(Enum):
 
 class Guard:
     """
-    Generic Guard class that implements logic for interacting with Stanza
-    Guards. All framework-specific logic is kept out of this implementation.
+    Guard class is used to perform various checks and updates the statuses related to a guard.
+
+    Attributes:
+        success (property): Returns the success status.
+        failure (property): Returns the failure status.
+        config_status (property): Returns the configuration status.
+        local_status (property): Returns the local status.
+        token_status (property): Returns the token status.
+        quota_status (property): Returns the quota status.
+        quota_token (property): Returns the quota token.
+        guard_config (property): Returns the guard configuration.
+        error (property): Returns the error message.
+        block_message (property): Returns the reason for the block as a human-readable string.
+        block_reason (property): Returns the reason for the block as a string.
+
+    Methods:
+        __init__(hub: StanzaHub, guard_name: str, feature_name: Optional[str] = None, priority_boost: Optional[int] = None,
+                default_weight: Optional[float] = None, tags: Optional[Dict[str, str]] = None): Initialize the Guard object.
+        run(tokens: Optional[Iterable[str]] = None): Run all guard checks and update guard statuses.
+
     """
 
     @property
@@ -109,7 +154,7 @@ class Guard:
 
     @property
     def block_message(self) -> Optional[str]:
-        """Returns the reason for the block as a human readable string."""
+        """Returns the reason for the block as a human-readable string."""
 
         if self.__local_status is Local.LOCAL_BLOCKED:
             return "Local resource exhausted. Please try again later."
@@ -617,10 +662,14 @@ class Guard:
 
 
 def start_batch_token_consumer(event_loop: asyncio.AbstractEventLoop):
-    """Continuously run the batch token consumer on the passed in event loop.
+    """
+    Starts the batch token consumer.
 
-    This function should only be wrapped in call_soon_threadsafe() and called
-    with the aforementioned event loop.
+    Parameters:
+        event_loop (asyncio.AbstractEventLoop): The event loop to use for running the batch token consumer.
+
+    Returns:
+        function: The wrapper function that starts the batch token consumer.
     """
 
     def wrapper():
@@ -631,10 +680,22 @@ def start_batch_token_consumer(event_loop: asyncio.AbstractEventLoop):
 
 
 async def batch_token_consumer():
-    """Iterates through all consumed tokens and consumes them in batches.
+    """
 
-    This function will loop indefinitely by an interval time as defined in
-    'BATCH_TOKEN_CONSUME_INTERVAL' (e.g. 200ms).
+    This method is an asynchronous function named batch_token_consumer. It consumes token leases in batches and performs some background processing.
+
+    Parameters:
+        None
+
+    Returns:
+        None
+
+    Raises:
+        None
+
+    Example usage:
+        await batch_token_consumer()
+
     """
 
     global consumed_leases
@@ -672,10 +733,16 @@ async def batch_token_consumer():
 
 
 def handle_batch_token_consumer(event_loop: asyncio.AbstractEventLoop):
-    """Gracefully handle and log errors from the background consumer task.
+    """
+    Handles the batch token consumer.
 
-    If the task fails because of an error, it will be rescheduled and continue
-    to attempt to send consumed tokens to Hub on an interval.
+    Parameters:
+    - event_loop: The asyncio.AbstractEventLoop to be used.
+
+    Returns:
+    - The wrapper function that handles the execution of the task.
+
+    TODO: Implement retry logic for consumed tokens that failed to be sent to the Hub.
     """
 
     # TODO: Retry logic for consumed tokens that we failed to send to Hub?
@@ -702,7 +769,51 @@ async def set_token_lease_consumed(
     leases: Iterable[quota_pb2.TokenLease],
     environment: str,
 ):
-    """Consume a set of token leases for a given environment."""
+    """
+
+    The `set_token_lease_consumed` method is used to consume token leases in a specified environment. It takes in the following parameters:
+
+    - `leases`: An iterable of `quota_pb2.TokenLease` objects. These objects represent the token leases that need to be consumed.
+    - `environment`: A string representing the environment in which the token leases should be consumed.
+
+    Example usage:
+    ```
+    from typing import Iterable
+    import logging
+
+    async def set_token_lease_consumed(
+        leases: Iterable[quota_pb2.TokenLease],
+        environment: str,
+    ):
+        import getstanza.client
+
+        client = getstanza.client.StanzaClient.getInstance()
+
+        # Check if Stanza SDK has been initialized
+        if client.hub is None:
+            raise RuntimeError("The Stanza SDK has not yet been initialized")
+
+        set_token_lease_consumed_request = quota_pb2.SetTokenLeaseConsumedRequest(
+            tokens=list(map(lambda lease: lease.token, leases)),
+            environment=environment,
+        )
+        logging.debug(
+            "Consuming %d token leases from environment '%s'",
+            len(set_token_lease_consumed_request.tokens),
+            environment,
+        )
+
+        # Call the SetTokenLeaseConsumed method of the QuotaService
+        client.hub.quota_service.SetTokenLeaseConsumed(
+            request=set_token_lease_consumed_request,
+            metadata=client.config.metadata,
+            timeout=DEFAULT_TIMEOUT,
+        )
+    ```
+
+    Please note that this code snippet assumes that you have the necessary imports and configurations in your code.
+
+    """
 
     import getstanza.client
 

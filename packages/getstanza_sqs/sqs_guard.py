@@ -120,7 +120,8 @@ class SQSGuard:
 
         return response
 
-    def __queue_arn_to_url(self, arn: str) -> str:
+    @staticmethod
+    def __queue_arn_to_url(arn: str) -> str:
         """
         Converts an SQS queue ARN to an HTTP URL.
         """
