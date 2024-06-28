@@ -47,6 +47,10 @@ class StanzaConfiguration:
                 - Otherwise, it returns the default value.
 
     """
+
+    def __init__(self, api_key: Optional[str], service_name: Optional[str],
+                 service_release: Optional[str], environment: Optional[str],
+                 hub_address: Optional[str]):
         """
         Initialize a new instance of the class.
 
@@ -58,10 +62,19 @@ class StanzaConfiguration:
 
         :return: None
         """
+        self.api_key = self._get_setting(api_key, "STANZA_API_KEY", None, True)
+        self.service_name = self._get_setting(service_name, "STANZA_SERVICE_NAME", None, True)
+        self.service_release = self._get_setting(service_release, "STANZA_SERVICE_RELEASE", "0.0.0")
+        self.environment = self._get_setting(environment, "STANZA_ENVIRONMENT", "dev")
+        self.hub_address = self._get_setting(hub_address, "STANZA_HUB_ADDRESS", "hub.stanzasys.co:9020")
         self.interval = datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS)
         self.client_id = str(uuid.uuid4())
         self.customer_id: Optional[str] = None
         self.metadata = [("x-stanza-key", self.api_key)]
+
+    @staticmethod
+    def _get_setting(input_value: Optional[str], env_var_name: str, default: Optional[str] = None,
+                     require_value: bool = False) -> Optional[str]:
         """
             _get_setting(input_value: Optional[str], env_var_name: str, default: Optional[str] = None,
                          require_value: bool = False) -> Optional[str]
@@ -90,3 +103,15 @@ class StanzaConfiguration:
 
                 print(result)  # "example"
         """
+        if input_value is not None:
+            return input_value
+
+        env_value = os.environ.get(env_var_name)
+        if env_value is not None:
+            return env_value
+
+        if require_value:
+            raise ValueError(f"Missing required {env_var_name.replace('_', ' ').title()} "
+                             f"(Hint: Set a {env_var_name} environment variable!)")
+
+        return default
