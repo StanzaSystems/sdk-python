@@ -8,65 +8,85 @@ CONFIG_POLL_INTERVAL_SECS = 15
 
 class StanzaConfiguration:
     """
-    Stanza SDK configuration. Values can be set directly as parameters to the
-    constructor, and when not present, are pulled from the environment.
+
+    The StanzaConfiguration class represents the configuration for the Stanza service. It allows setting various properties such as the API key, service name, service release, environment, and hub address.
+
+    Constructor:
+        def __init__(self, api_key: Optional[str], service_name: Optional[str],
+                     service_release: Optional[str], environment: Optional[str],
+                     hub_address: Optional[str])
+
+            Initializes a new instance of the StanzaConfiguration class.
+
+            Parameters:
+                - api_key (Optional[str]): The API key to authenticate with the Stanza service. If not provided, it will attempt to read from the "STANZA_API_KEY" environment variable.
+                - service_name (Optional[str]): The name of the service. If not provided, it will attempt to read from the "STANZA_SERVICE_NAME" environment variable.
+                - service_release (Optional[str]): The release version of the service. If not provided, it defaults to "0.0.0".
+                - environment (Optional[str]): The environment name of the service. If not provided, it defaults to "dev".
+                - hub_address (Optional[str]): The address of the Stanza hub. If not provided, it defaults to "hub.stanzasys.co:9020".
+
+    Properties:
+        - api_key (str): Returns the API key used for authentication.
+        - service_name (str): Returns the name of the service.
+        - service_release (str): Returns the release version of the service.
+        - environment (str): Returns the environment name of the service.
+        - hub_address (str): Returns the address of the Stanza hub.
+        - interval (timedelta): Returns the interval between configuration polls.
+        - client_id (str): Returns the unique client ID generated for this configuration.
+        - customer_id (Optional[str]): Returns the customer ID associated with this configuration.
+        - metadata (List[Tuple[str, str]]): Returns the metadata associated with this configuration.
+
+    Methods:
+        - _get_setting(input_value: Optional[str], env_var_name: str, default: Optional[str] = None,
+                       require_value: bool = False) -> Optional[str]
+
+            This is a private helper method used to get the setting value based on the input value, environment variable, default value, and whether a value is required or not. It returns the setting value based on the following rules:
+                - If the input_value is not None, it returns the input_value.
+                - If the env_var_name environment variable is set, it returns its value.
+                - If require_value is True and no value is found, it raises a ValueError indicating the missing required environment variable.
+                - Otherwise, it returns the default value.
+
     """
+        """
+        Initialize a new instance of the class.
 
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        service_name: Optional[str] = None,
-        service_release: Optional[str] = None,
-        environment: Optional[str] = None,
-        hub_address: Optional[str] = None,
-    ):
-        if not api_key:
-            if os.environ.get("STANZA_API_KEY"):
-                self.api_key = os.environ.get("STANZA_API_KEY")
-            else:
-                raise ValueError(
-                    "Missing required Stanza API key "
-                    "(Hint: Set a STANZA_API_KEY environment variable!)"
-                )
-        else:
-            self.api_key = api_key
+        :param api_key: An optional string representing the API key.
+        :param service_name: An optional string representing the service name.
+        :param service_release: An optional string representing the service release version.
+        :param environment: An optional string representing the environment.
+        :param hub_address: An optional string representing the hub address.
 
-        if not service_name:
-            if os.environ.get("STANZA_SERVICE_NAME"):
-                self.service_name = os.environ.get("STANZA_SERVICE_NAME")
-            else:
-                raise ValueError(
-                    "Missing required service name "
-                    "(Hint: Set a STANZA_SERVICE_NAME environment variable!)"
-                )
-        else:
-            self.service_name = service_name
-
-        if not service_release:
-            if os.environ.get("STANZA_SERVICE_RELEASE"):
-                self.service_release = os.environ.get("STANZA_SERVICE_RELEASE")
-            else:
-                self.service_release = "0.0.0"
-        else:
-            self.service_release = service_release
-
-        if not environment:
-            if os.environ.get("STANZA_ENVIRONMENT"):
-                self.environment = os.environ.get("STANZA_ENVIRONMENT")
-            else:
-                self.environment = "dev"
-        else:
-            self.environment = environment
-
-        if not hub_address:
-            if os.environ.get("STANZA_HUB_ADDRESS"):
-                self.hub_address = os.environ.get("STANZA_HUB_ADDRESS")
-            else:
-                self.hub_address = "hub.stanzasys.co:9020"
-        else:
-            self.hub_address = hub_address
-
+        :return: None
+        """
         self.interval = datetime.timedelta(seconds=CONFIG_POLL_INTERVAL_SECS)
         self.client_id = str(uuid.uuid4())
         self.customer_id: Optional[str] = None
         self.metadata = [("x-stanza-key", self.api_key)]
+        """
+            _get_setting(input_value: Optional[str], env_var_name: str, default: Optional[str] = None,
+                         require_value: bool = False) -> Optional[str]
+
+            Retrieves a setting value based on the given input value, environment variable, default value, and requirement flag.
+
+            Parameters:
+                input_value (Optional[str]): The input value to be checked. If a non-null value is provided, it is returned as the setting value.
+                env_var_name (str): The name of the environment variable. If it is set, the value of the environment variable is returned as the setting value.
+                default (Optional[str], optional): The default value to be returned if no other value is found. Defaults to None.
+                require_value (bool, optional): Specifies whether the setting value is required. If set to True and no value is found, a ValueError is raised. Defaults to False.
+
+            Returns:
+                Optional[str]: The retrieved setting value or None if no value is found and no default is specified.
+
+            Raises:
+                ValueError: If require_value is True and no value is found.
+
+            Example Usage:
+                input_value = "example"
+                env_var_name = "MY_SETTING"
+                default = "default_value"
+                require_value = False
+
+                result = _get_setting(input_value, env_var_name, default=default, require_value=require_value)
+
+                print(result)  # "example"
+        """
